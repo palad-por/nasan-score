@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ระบบจัดการ DOPA NASAN Score</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent;}
+        .glass-header { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .login-modal { position: fixed; inset: 0; background: #0f172a; z-index: 9000; display: flex; align-items: center; justify-content: center; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        .user-only, .admin-only, .district-only { display: none; }
+        .swal2-container { z-index: 10000 !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="loading" class="loading-overlay hidden">
+        <div class="animate-spin rounded-full h-14 w-14 border-4 border-indigo-500 border-t-transparent mb-4"></div>
+        <p class="text-indigo-800 font-bold" id="loading-text">กำลังโหลด...</p>
+    </div>
+
+    <!-- Login -->
+    <div id="loginScreen" class="login-modal">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center mx-4">
+            <div class="text-indigo-600 text-5xl mb-4"><i class="fa-solid fa-shield-halved"></i></div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">เข้าสู่ระบบ</h2>
+            <p class="text-slate-500 text-sm mb-6">DOPA NASAN Score</p>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <input id="user" class="w-full p-3.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 text-base" placeholder="Username / เลขบัตร 13 หลัก" required>
+                <input type="password" id="pass" class="w-full p-3.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 text-base" placeholder="Password" required>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 active:scale-95">เข้าใช้งาน</button>
+            </form>
+            <div class="mt-6 border-t pt-4">
+                <button onclick="goToDashboard()" type="button" class="text-sm text-slate-500 hover:text-indigo-600 transition"><i class="fa-solid fa-arrow-left mr-1"></i> กลับหน้าสรุปคะแนน (Dashboard)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Main -->
+    <div id="app" class="flex-col h-screen hidden">
+        <header class="glass-header text-white shadow-lg flex-none px-4 py-3 md:px-6 md:py-4 flex justify-between items-center z-20">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 p-2 rounded-lg"><i class="fa-solid fa-user-tie text-xl"></i></div>
+                <div><h1 class="font-bold text-base md:text-lg">ระบบจัดการคะแนน</h1><p class="text-xs text-indigo-200" id="userDisplay">-</p></div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="openModal('modal-settings')" class="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-sm transition" title="เปลี่ยนรหัสผ่าน"><i class="fa-solid fa-key"></i></button>
+                <button onclick="goToDashboard()" class="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-sm transition flex items-center gap-1"><i class="fa-solid fa-chart-pie"></i> <span class="hidden md:inline">แดชบอร์ด</span></button>
+                <button onclick="logout()" class="bg-red-500/80 hover:bg-red-600 px-3 py-2 rounded-lg text-sm transition"><i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </header>
+
+        <div class="flex flex-col md:flex-row flex-grow overflow-hidden relative">
+            
+            <aside id="sidebar" class="w-full md:w-72 flex-none max-h-[40vh] md:max-h-none bg-white border-b md:border-r border-slate-200 flex-col p-4 hidden z-10 shadow-sm admin-only overflow-y-auto custom-scroll">
+                <h4 class="font-bold text-slate-600 text-xs uppercase mb-2">เมนูการทำงานหลัก</h4>
+                <div class="bg-gradient-to-b from-indigo-50 to-white p-3 rounded-2xl border border-indigo-100 mb-4 shadow-sm space-y-3">
+                    <button onclick="openScoreModal()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl text-base font-bold shadow-md hover:bg-indigo-700 flex items-center justify-center gap-2 transition-transform active:scale-95"><i class="fa-solid fa-star-half-stroke text-lg"></i> ให้คะแนนเป้าหมาย</button>
+                    <button onclick="loadApprovalCenter()" class="w-full bg-amber-500 text-white py-3.5 rounded-xl text-base font-bold shadow-md hover:bg-amber-600 flex items-center justify-center gap-2 transition-transform active:scale-95"><i class="fa-solid fa-clipboard-check text-lg"></i> ศูนย์พิจารณาคำร้อง</button>
+                </div>
+
+                <div class="district-only mb-4">
+                    <h4 class="font-bold text-slate-600 text-xs uppercase mb-2">การจัดการข้อมูล (เฉพาะอำเภอ)</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="openModal('offModal')" class="bg-white text-slate-700 border border-slate-300 py-2.5 rounded-xl text-xs hover:bg-slate-50 transition font-medium"><i class="fa-solid fa-user-plus text-indigo-500 mb-1 block text-lg"></i> เพิ่มรายชื่อ</button>
+                        <button onclick="openResetModal()" class="bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-xs hover:bg-red-100 transition font-medium"><i class="fa-solid fa-rotate-left mb-1 block text-lg"></i> ล้างคะแนน</button>
+                        <button onclick="exportCSV()" class="col-span-2 bg-green-50 text-green-700 border border-green-200 py-2.5 rounded-xl text-sm hover:bg-green-100 transition font-bold flex justify-center items-center gap-2"><i class="fa-solid fa-file-excel"></i> ดาวน์โหลดรายงาน (CSV)</button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-slate-600 text-xs uppercase mb-2 pb-1 border-b">ค้นหาและตัวกรอง</h4>
+                    <div class="space-y-3">
+                        <select id="filterSub" onchange="filterVillages()" class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-1 focus:ring-indigo-400"><option value="">ทุกตำบล</option></select>
+                        <select id="filterVil" onchange="filter()" class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-1 focus:ring-indigo-400"><option value="">ทุกหมู่บ้าน</option></select>
+                        <div class="relative">
+                            <input id="search" onkeyup="filter()" class="w-full pl-9 p-2.5 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-1 focus:ring-indigo-400" placeholder="ค้นหาชื่อ...">
+                            <i class="fa-solid fa-search absolute left-3.5 top-3.5 text-slate-400 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-grow p-4 overflow-y-auto bg-slate-100 custom-scroll relative">
+
+                <!-- Admin View (Table) -->
+                <div id="adminTableContainer" class="admin-only h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b bg-slate-50/50 flex justify-between items-center">
+                        <h2 class="font-bold text-slate-700 text-sm md:text-base"><i class="fa-solid fa-users mr-2 text-indigo-500"></i> รายชื่อบุคลากร</h2>
+                        <span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold" id="listCount">0 คน</span>
+                    </div>
+                    <div class="overflow-x-auto flex-grow">
+                        <table class="w-full text-left min-w-[600px]">
+                            <thead class="bg-slate-100 text-slate-500 text-xs uppercase font-semibold sticky top-0 shadow-sm z-10">
+                                <tr><th class="p-4">ชื่อ-สกุล / ตำแหน่ง</th><th class="p-4">สังกัด</th><th class="p-4 text-center">คะแนนรวม</th><th class="p-4 text-center">จัดการ</th></tr>
+                            </thead>
+                            <tbody id="tableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- User View (Kamnan/Phuyaiban) -->
+                <div id="userContainer" class="user-only max-w-lg mx-auto space-y-6 mt-4 pb-10">
+                    <div class="bg-white p-6 md:p-8 rounded-3xl shadow-md border border-slate-200 text-center relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                        <div class="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-400 text-4xl shadow-inner border border-indigo-100"><i class="fa-solid fa-user"></i></div>
+                        <h2 id="uName" class="text-2xl font-bold text-slate-800 mb-1">-</h2>
+                        <p id="uPos" class="text-slate-500 text-sm">-</p>
+                        <div class="mt-6 bg-slate-50 py-4 px-8 rounded-2xl inline-block border border-slate-100 shadow-sm w-full max-w-[250px]">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">คะแนนรวมสะสม</p>
+                            <p id="uScore" class="text-5xl font-bold text-indigo-600 mt-2">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button onclick="openModal('modal-req')" class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 hover:border-indigo-400 transition text-center group active:scale-95 flex flex-col items-center">
+                            <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-3 group-hover:bg-indigo-100 transition">
+                                <i class="fa-solid fa-hand-holding-hand text-3xl text-indigo-500 group-hover:scale-110 transition-transform"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-700 text-lg">ยื่นเสนอผลงาน</h3><p class="text-xs text-slate-400 mt-1">ร้องขอคะแนนเพิ่ม</p>
+                        </button>
+                        
+                        <button onclick="viewUserHistory()" class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 hover:border-indigo-400 transition text-center group active:scale-95 flex flex-col items-center">
+                            <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-3 group-hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-clock-rotate-left text-3xl text-slate-500 group-hover:scale-110 transition-transform"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-700 text-lg">ประวัติ/อุทธรณ์</h3><p class="text-xs text-slate-400 mt-1">ตรวจสอบคะแนนของตนเอง</p>
+                        </button>
+
+                        <button onclick="loadMyRequestsStatus()" class="md:col-span-2 bg-gradient-to-r from-slate-800 to-slate-700 text-white p-5 rounded-3xl shadow-sm hover:shadow-md transition text-center group active:scale-95 flex items-center justify-center gap-4">
+                            <i class="fa-solid fa-magnifying-glass-chart text-3xl opacity-80"></i>
+                            <div class="text-left"><h3 class="font-bold text-lg">ติดตามสถานะคำร้องและอุทธรณ์</h3><p class="text-xs text-slate-300 mt-0.5">ดูผลการพิจารณาจากตำบล/อำเภอ</p></div>
+                        </button>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- 1. Score Modal (Admin) -->
+    <div id="scoreModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+        <div class="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:rounded-2xl md:max-w-4xl flex flex-col shadow-2xl">
+            <div class="p-4 border-b bg-indigo-600 text-white md:rounded-t-2xl flex justify-between items-center flex-none">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-star-half-stroke mr-2"></i>บันทึกคะแนน</h3>
+                <button onclick="closeModal('scoreModal')" class="p-2"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+            <div class="flex-grow overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50 custom-scroll">
+                
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-2 border-b pb-2 mb-3">
+                        <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">1</div>
+                        <h4 class="font-bold text-slate-700 text-sm">เลือกกลุ่มเป้าหมาย</h4>
+                        <span id="selCount" class="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full ml-auto font-bold">เลือกแล้ว 0 คน</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                        <div class="md:col-span-1">
+                            <select id="targetMode" class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none focus:border-indigo-400" onchange="renderTargetUI()">
+                                <option value="multi_individual">เลือกรายบุคคล (ค้นหา/ติ๊กถูก)</option>
+                                <option value="multi_tambon">เลือกรายตำบล</option>
+                                <option value="multi_village">เลือกรายหมู่บ้าน</option>
+                                <option value="all">ทุกคน</option>
+                                <option value="all_except">ทุกคน ยกเว้นบุคคลต่อไปนี้</option>
+                                <option value="tambon_except">ตำบล... ยกเว้นบุคคลต่อไปนี้</option>
+                                <option value="village_except">หมู่บ้าน... ยกเว้นบุคคลต่อไปนี้</option>
+                            </select>
+                        </div>
+                        <div id="baseAreaDiv" class="md:col-span-2 hidden grid-cols-2 gap-2">
+                            <div><select id="baseSub" class="w-full p-2.5 border rounded-xl text-sm outline-none bg-slate-50" onchange="updBaseVil(); renderTargetUI();"></select></div>
+                            <div><select id="baseVil" class="w-full p-2.5 border rounded-xl text-sm outline-none bg-slate-50" onchange="renderTargetUI()"></select></div>
+                        </div>
+                    </div>
+
+                    <div id="targetSearchDiv">
+                        <div class="relative mb-2">
+                            <i class="fa-solid fa-search absolute left-3 top-3.5 text-slate-400 text-xs"></i>
+                            <input id="targetSearch" onkeyup="renderTargetUI()" class="w-full pl-8 p-2.5 border rounded-xl text-sm bg-white outline-none focus:border-indigo-400" placeholder="พิมพ์ค้นหาชื่อเพื่อเลือก/ยกเว้น...">
+                        </div>
+                        <div id="targetList" class="max-h-48 overflow-y-auto border rounded-lg bg-white custom-scroll divide-y divide-slate-50"></div>
+                        <p class="text-[10px] text-slate-400 mt-2"><i class="fa-solid fa-info-circle"></i> ระบบจะจดจำคนที่คุณติ๊กเลือกไว้ แม้คุณจะพิมพ์ค้นหาคนใหม่</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex justify-between items-center mb-3 border-b pb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">2</div>
+                            <h4 class="font-bold text-slate-700 text-sm">ข้อมูลกิจกรรม</h4>
+                        </div>
+                        <button onclick="addAct()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-bold transition border border-indigo-100">+ เพิ่ม</button>
+                    </div>
+                    <div id="actContainer" class="space-y-4"></div>
+                </div>
+            </div>
+            <div class="p-4 border-t bg-white flex justify-end gap-2 flex-none md:rounded-b-2xl pb-8 md:pb-4">
+                <button onclick="closeModal('scoreModal')" class="px-5 py-2.5 border rounded-xl text-sm font-bold text-slate-600">ยกเลิก</button>
+                <button onclick="submitBatch()" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 flex items-center gap-2"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Edit / Delete / History Modal -->
+    <div id="histModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+        <div class="bg-white w-full h-full md:h-[85vh] md:max-w-4xl md:rounded-2xl flex flex-col shadow-2xl">
+            <div class="p-4 border-b bg-slate-800 text-white md:rounded-t-2xl flex justify-between flex-none"><h3 class="font-bold" id="histTitle">ประวัติคะแนน</h3><button onclick="closeModal('histModal')" class="p-2"><i class="fa-solid fa-times text-xl"></i></button></div>
+            <div class="flex-grow overflow-auto p-4 custom-scroll relative bg-slate-50">
+                <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
+                    <table class="w-full text-left min-w-[600px]">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr><th class="p-4 w-24">วันที่</th><th class="p-4">หมวดและรายละเอียดกิจกรรม</th><th class="p-4 text-right w-20">คะแนน</th><th class="p-4 text-center w-28">จัดการ/หลักฐาน</th></tr></thead>
+                        <tbody id="histBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Log Form Modal (Admin only) -->
+    <div id="modal-edit-log" class="hidden fixed inset-0 bg-slate-900/90 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden border-t-4 border-amber-500">
+            <div class="p-4 bg-white border-b flex justify-between"><h3 class="font-bold text-amber-600"><i class="fa-solid fa-pen mr-2"></i>แก้ไขประวัติย้อนหลัง</h3><button onclick="closeModal('modal-edit-log')"><i class="fa-solid fa-times text-lg"></i></button></div>
+            <div class="p-5 space-y-4 bg-slate-50">
+                <input type="hidden" id="editLogIndex"><input type="hidden" id="editLogIdCard">
+                <div><label class="text-xs font-bold text-slate-500">แก้ไขหมวดหมู่</label><select id="editLogCat" class="w-full p-2.5 border rounded-xl bg-white text-sm outline-none focus:border-amber-400"></select></div>
+                <div><label class="text-xs font-bold text-slate-500">แก้ไขชื่อกิจกรรม</label><input type="text" id="editLogActName" class="w-full p-2.5 border rounded-xl bg-white text-sm outline-none focus:border-amber-400"></div>
+                <div><label class="text-xs font-bold text-slate-500">แก้ไขรายละเอียดกิจกรรม</label><textarea id="editLogActDetail" class="w-full p-2.5 border rounded-xl bg-white text-sm outline-none focus:border-amber-400" rows="3"></textarea></div>
+                <div><label class="text-xs font-bold text-slate-500">แก้ไขคะแนน (ใส่ตัวเลขบวก)</label><input type="number" id="editLogScore" class="w-full p-2.5 border rounded-xl bg-white text-sm font-bold text-amber-600 text-center outline-none focus:border-amber-400" min="0.5" step="0.5"></div>
+            </div>
+            <div class="p-4 border-t bg-white flex gap-2"><button onclick="closeModal('modal-edit-log')" class="flex-1 py-3 bg-slate-100 border rounded-xl font-bold text-slate-600">ยกเลิก</button><button onclick="saveEditLog()" class="flex-1 py-3 bg-amber-500 text-white rounded-xl font-bold shadow hover:bg-amber-600">บันทึกแก้ไข</button></div>
+        </div>
+    </div>
+
+    <!-- 3. Approval Center Modal (Admin) -->
+    <div id="modal-approve" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+        <div class="bg-white w-full h-full md:h-[90vh] md:max-w-5xl md:rounded-2xl flex flex-col shadow-2xl md:border-t-4 border-amber-500">
+            <div class="p-4 border-b bg-amber-50 text-amber-800 md:rounded-t-2xl flex justify-between items-center flex-none">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-clipboard-check mr-2"></i>ศูนย์พิจารณาคำร้อง / อุทธรณ์</h3>
+                <button onclick="closeModal('modal-approve')" class="p-2 hover:text-amber-900"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+            <div class="flex-grow overflow-auto p-4 md:p-6 custom-scroll bg-slate-100">
+                <div id="approveContainer" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. User Request Modal (Split fields) -->
+    <div id="modal-req" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border-t-4 border-indigo-500">
+            <div class="p-4 bg-white text-slate-800 border-b flex justify-between"><h3 class="font-bold text-indigo-700">ยื่นคำร้องเสนอผลงาน</h3><button onclick="closeModal('modal-req')"><i class="fa-solid fa-times text-lg"></i></button></div>
+            <div class="p-5 space-y-4 bg-slate-50 max-h-[70vh] overflow-y-auto custom-scroll">
+                <div><label class="text-xs font-bold text-slate-500">วันที่ทำผลงาน</label><input type="date" id="reqDate" class="w-full p-3 border rounded-xl bg-white text-sm outline-none focus:ring-1 focus:ring-indigo-400"></div>
+                <div><label class="text-xs font-bold text-slate-500">หมวดหมู่ผลงาน</label><select id="reqCat" class="w-full p-3 border rounded-xl bg-white text-sm outline-none focus:ring-1 focus:ring-indigo-400"></select></div>
+                <div><label class="text-xs font-bold text-slate-500">ชื่อผลงาน</label><input id="reqTitle" class="w-full p-3 border rounded-xl bg-white text-sm outline-none focus:ring-1 focus:ring-indigo-400" placeholder="เช่น บริจาคโลหิต"></div>
+                <div><label class="text-xs font-bold text-slate-500">รายละเอียดผลงาน</label><textarea id="reqDesc" class="w-full p-3 border rounded-xl bg-white text-sm h-20 outline-none focus:ring-1 focus:ring-indigo-400" placeholder="อธิบายเพิ่มเติม..."></textarea></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-xs font-bold text-slate-500">คะแนนที่ขอ</label><input type="number" id="reqScore" class="w-full p-3 border rounded-xl bg-white text-sm font-bold text-indigo-600 text-center outline-none focus:ring-1 focus:ring-indigo-400" value="1" min="0.5" step="0.5"></div>
+                    <div><label class="text-xs font-bold text-slate-500">แนบไฟล์หลักฐาน</label><input type="file" id="reqFile" class="w-full p-2 border rounded-xl bg-white text-xs mt-1" accept="image/*,.pdf,video/*"></div>
+                </div>
+            </div>
+            <div class="p-4 border-t bg-white flex gap-3"><button onclick="closeModal('modal-req')" class="flex-1 py-3.5 bg-slate-100 border rounded-xl font-bold text-slate-600">ยกเลิก</button><button onclick="submitReq('REQUEST')" class="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 active:scale-95 transition-transform">ส่งคำร้อง</button></div>
+        </div>
+    </div>
+
+    <!-- User Appeal Modal -->
+    <div id="modal-appeal" class="hidden fixed inset-0 bg-slate-900/90 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border-t-4 border-orange-500">
+            <div class="p-4 bg-white text-slate-800 border-b flex justify-between"><h3 class="font-bold text-orange-600">ยื่นอุทธรณ์การหักคะแนน</h3><button onclick="closeModal('modal-appeal')"><i class="fa-solid fa-times text-lg"></i></button></div>
+            <div class="p-5 space-y-4 bg-slate-50 max-h-[70vh] overflow-y-auto custom-scroll">
+                <input type="hidden" id="appealLogId"><input type="hidden" id="appealCatId"><input type="hidden" id="appealScore">
+                <div><label class="text-xs font-bold text-slate-500">วันที่ยื่นอุทธรณ์</label><input type="date" id="appealDate" class="w-full p-3 border rounded-xl bg-white text-sm outline-none focus:ring-1 focus:ring-orange-400"></div>
+                <div><label class="text-xs font-bold text-slate-500">เรื่องอุทธรณ์ (กิจกรรมที่ถูกหักคะแนน)</label><input id="appealTitle" class="w-full p-3 border rounded-xl bg-slate-200 text-sm text-slate-600" readonly></div>
+                <div><label class="text-xs font-bold text-slate-500">รายละเอียดคำชี้แจง</label><textarea id="appealDesc" class="w-full p-3 border rounded-xl bg-white text-sm h-24 outline-none focus:ring-1 focus:ring-orange-400" placeholder="พิมพ์คำชี้แจงของคุณที่นี่..."></textarea></div>
+                <div><label class="text-xs font-bold text-slate-500">แนบไฟล์หลักฐานประกอบ</label><input type="file" id="appealFile" class="w-full p-2 border rounded-xl bg-white text-xs mt-1" accept="image/*,.pdf,video/*"></div>
+            </div>
+            <div class="p-4 border-t bg-white flex gap-3"><button onclick="closeModal('modal-appeal')" class="flex-1 py-3.5 bg-slate-100 border rounded-xl font-bold text-slate-600">ยกเลิก</button><button onclick="submitReq('APPEAL')" class="flex-1 py-3.5 bg-orange-500 text-white rounded-xl font-bold shadow-lg hover:bg-orange-600 active:scale-95 transition-transform">ส่งอุทธรณ์</button></div>
+        </div>
+    </div>
+
+    <!-- User My Requests Modal (Status tracking) -->
+    <div id="modal-my-reqs" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+        <div class="bg-white w-full h-full md:h-[80vh] md:max-w-3xl md:rounded-2xl flex flex-col shadow-2xl">
+            <div class="p-4 border-b bg-slate-800 text-white md:rounded-t-2xl flex justify-between items-center flex-none">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-magnifying-glass-chart mr-2"></i>สถานะคำร้อง/อุทธรณ์ของฉัน</h3>
+                <button onclick="closeModal('modal-my-reqs')" class="p-2"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+            <div class="flex-grow overflow-auto p-4 custom-scroll bg-slate-50">
+                <div id="myReqsContainer" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Advanced Reset Modal -->
+    <div id="modal-reset" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl w-full max-w-3xl max-h-[95vh] flex flex-col shadow-2xl border-t-4 border-red-500">
+            <div class="p-4 border-b bg-red-50 text-red-700 rounded-t-3xl flex justify-between items-center flex-none">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-rotate-left mr-2"></i>ล้างคะแนนและประวัติ</h3>
+                <button onclick="closeModal('modal-reset')" class="hover:text-red-900"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto p-4 md:p-6 space-y-6 custom-scroll bg-slate-50">
+                <div class="bg-white p-5 rounded-2xl border shadow-sm">
+                    <div class="flex items-center gap-2 mb-3 border-b pb-2">
+                        <div class="w-6 h-6 bg-red-100 text-red-600 rounded-full flex justify-center items-center font-bold text-xs">1</div>
+                        <h4 class="font-bold text-slate-700 text-sm">เลือกกลุ่มเป้าหมายที่จะล้างข้อมูล</h4>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                        <div class="md:col-span-1">
+                            <select id="resetTargetMode" class="w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:border-red-400" onchange="renderResetTargetUI()">
+                                <option value="all">ทั้งหมดทุกคน</option><option value="multi_individual">เลือกรายบุคคล</option><option value="multi_tambon">เลือกรายตำบล</option><option value="multi_village">เลือกรายหมู่บ้าน</option><option value="all_except">ทั้งหมดยกเว้น...</option><option value="tambon_except">ตำบล... ยกเว้น...</option><option value="village_except">หมู่บ้าน... ยกเว้น...</option>
+                            </select>
+                        </div>
+                        <div id="resetBaseAreaDiv" class="md:col-span-2 hidden grid-cols-2 gap-2">
+                            <div><select id="resetTargetBaseSub" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50" onchange="updResetTargetBaseVil(); renderResetTargetUI();"></select></div>
+                            <div><select id="resetTargetBaseVil" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50" onchange="renderResetTargetUI()"></select></div>
+                        </div>
+                    </div>
+                    <div id="resetTargetSearchDiv" class="hidden">
+                        <div class="relative mb-2">
+                            <i class="fa-solid fa-search absolute left-3 top-4 text-slate-400 text-xs"></i>
+                            <input id="resetTargetSearchBox" onkeyup="renderResetTargetUI()" class="w-full pl-8 p-3 border rounded-xl text-sm focus:border-red-400 outline-none" placeholder="ค้นหาเพื่อเลือก/ยกเว้น...">
+                        </div>
+                        <div id="resetTargetCheckboxes" class="max-h-48 overflow-y-auto border rounded-xl bg-white custom-scroll divide-y divide-slate-50"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t bg-white rounded-b-3xl flex justify-end gap-3 flex-none">
+                <button onclick="closeModal('modal-reset')" class="px-6 py-3 border rounded-xl text-slate-600 text-sm font-bold hover:bg-slate-50">ยกเลิก</button>
+                <button onclick="doReset()" class="px-6 py-3 bg-red-600 text-white rounded-xl shadow-md hover:bg-red-700 text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-trash-can"></i> ยืนยันล้างคะแนนเป็น 0</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Official Add & Settings -->
+    <div id="offModal" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl"><h3 class="font-bold text-indigo-600 mb-5 text-xl">เพิ่มรายชื่อใหม่</h3><div class="space-y-4"><input id="newId" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-indigo-400" placeholder="เลขบัตร 13 หลัก"><input id="newName" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-indigo-400" placeholder="ชื่อ-สกุล"><select id="newPos" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-indigo-400"><option>กำนัน</option><option>ผู้ใหญ่บ้าน</option><option>ผปค.</option><option>ผรส.</option><option>สารวัตรกำนัน</option><option>แพทย์ประจำตำบล</option></select><div class="grid grid-cols-2 gap-3"><input id="newMoo" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-indigo-400" placeholder="หมู่ที่"><input id="newVil" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-indigo-400" placeholder="ชื่อหมู่บ้าน"></div><input id="newSub" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-indigo-400" placeholder="ตำบล"></div><div class="flex gap-3 mt-6"><button onclick="closeModal('offModal')" class="flex-1 py-3 border rounded-xl text-sm font-bold text-slate-600">ยกเลิก</button><button onclick="saveOff()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200">บันทึก</button></div></div></div>
+
+    <div id="modal-settings" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl"><h3 class="font-bold mb-5 text-xl">เปลี่ยนรหัสผ่านส่วนตัว</h3><input type="password" id="oldPass" class="w-full p-3 border rounded-xl text-sm mb-4 outline-none focus:border-slate-800" placeholder="รหัสเดิม"><input type="password" id="newPass" class="w-full p-3 border rounded-xl text-sm mb-6 outline-none focus:border-slate-800" placeholder="รหัสใหม่"><div class="flex gap-3"><button onclick="closeModal('modal-settings')" class="flex-1 py-3 border rounded-xl text-sm font-bold text-slate-600">ยกเลิก</button><button onclick="changePass()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl text-sm font-bold shadow-lg">บันทึกใหม่</button></div></div></div>
+
+    <!-- Script Logic -->
+    <script>
+        // =========================================================================
+        // ตั้งค่า API_URL ให้เป็น Web App URL ของ Google Apps Script ที่คุณ Deploy 
+        // =========================================================================
+        const API_URL = "https://script.google.com/macros/s/AKfycbwTSWRzl4jwz8gBpYIF9EQ2nIolTBummoXhFYB82EMKCS-UES1Xeja96XV9mX7rKR7b5w/exec"; 
+
+        async function callServer(action, data = {}) {
+            if (API_URL === "YOUR_WEB_APP_URL_HERE") {
+                throw new Error("กรุณาใส่ API_URL ที่บรรทัด 303");
+            }
+            const payload = { action: action, ...data };
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Network error');
+                return await response.json();
+            } catch (error) {
+                console.error("API Error:", error);
+                throw error;
+            }
+        }
+
+        let curUser=null, allData=[], criteria=[], actRows=[], globalSelections=new Set();
+
+        function setLoad(b, t="กำลังประมวลผล...") { 
+            document.getElementById('loading-text').innerText = t; 
+            document.getElementById('loading').style.display = b ? 'flex' : 'none'; 
+        }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // --- AUTH ---
+        function handleLogin(e) {
+            e.preventDefault();
+            const u=document.getElementById('user').value, p=document.getElementById('pass').value;
+            setLoad(true, "ตรวจสอบสิทธิ์ผู้ใช้งาน...");
+            callServer('loginUser', { user: u, pass: p })
+                .then(r => {
+                    if(r.success) {
+                        curUser=r;
+                        document.getElementById('loginScreen').style.display='none';
+                        document.getElementById('app').style.display='flex';
+                        document.getElementById('userDisplay').innerText = r.name;
+                        
+                        if(r.role==='user') {
+                            document.querySelectorAll('.user-only').forEach(el=>el.style.display='block');
+                            document.getElementById('sidebar').style.display='none'; 
+                            document.getElementById('adminTableContainer').style.display='none'; 
+                            loadUserData();
+                        } else {
+                            document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
+                            document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display='block');
+                            if(r.role==='district') {
+                                document.querySelectorAll('.district-only').forEach(el=>el.style.display='block');
+                            }
+                            initAdmin();
+                        }
+                    } else {
+                        setLoad(false); Swal.fire('Error', r.message, 'error');
+                    }
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        function logout() {
+            setLoad(true, "กำลังออกจากระบบ...");
+            window.location.href = "index.html"; 
+        }
+
+        function goToDashboard() {
+             window.location.href = "index.html"; 
+        }
+
+        // --- INIT DATA (Admin & User) ---
+        function initAdmin() {
+            setLoad(true, "กำลังโหลดเกณฑ์ประเมิน...");
+            callServer('getInitData')
+                .then(r => {
+                    criteria = r.criteria;
+                    let opts = '<option value="">- เลือกหมวด -</option>';
+                    criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
+                    document.getElementById('reqCat').innerHTML = opts;
+                    
+                    setLoad(true, "ดึงข้อมูลบุคลากร...");
+                    return callServer('getOfficialsData');
+                })
+                .then(d => {
+                    allData = d;
+                    if(curUser.role==='tambon') allData = allData.filter(x=>x.subdistrict===curUser.filter);
+                    initFilters(); filter(); setLoad(false);
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        function loadUserData() {
+            setLoad(true, "กำลังดึงข้อมูลส่วนบุคคล...");
+            callServer('getInitData')
+                .then(r => {
+                    criteria = r.criteria;
+                    let opts = '<option value="">- เลือกหมวดผลงาน -</option>';
+                    criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
+                    document.getElementById('reqCat').innerHTML = opts;
+                    
+                    return callServer('getOfficialsData');
+                })
+                .then(d => {
+                    allData = d;
+                    const me = d.find(x => x.idCard === curUser.username);
+                    if(me) {
+                        document.getElementById('uName').innerText = me.fullName;
+                        document.getElementById('uPos').innerText = `${me.position} ม.${me.moo} ต.${me.subdistrict}`;
+                        document.getElementById('uScore').innerText = me.totalScore;
+                    }
+                    setLoad(false);
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        // --- FILTERS (Admin) ---
+        function initFilters() {
+            const subs = [...new Set(allData.map(i=>i.subdistrict).filter(Boolean))].sort();
+            const subOpts = '<option value="">ทุกตำบล</option>' + subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+            document.getElementById('filterSub').innerHTML = subOpts;
+            
+            const baseSubOpts = '<option value="">- เลือกตำบล -</option>' + subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+            document.getElementById('baseSub').innerHTML = baseSubOpts;
+            document.getElementById('resetTargetBaseSub').innerHTML = baseSubOpts;
+
+            if (curUser.role === 'tambon') {
+                document.getElementById('filterSub').value = curUser.filter;
+                document.getElementById('filterSub').disabled = true;
+                filterVillages(); 
+            }
+        }
+
+        function filterVillages() {
+            const s = document.getElementById('filterSub').value;
+            const vSel = document.getElementById('filterVil');
+            if(!s) vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>';
+            else {
+                const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.rawVillage).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
+                vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>' + vs.map(v=>`<option>${v}</option>`).join('');
+            }
+            filter();
+        }
+
+        function filter() {
+            const s = document.getElementById('filterSub').value, v = document.getElementById('filterVil').value, t = document.getElementById('search').value.toLowerCase();
+            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.rawVillage===v) && d.fullName.toLowerCase().includes(t));
+            const tb = document.getElementById('tableBody'); tb.innerHTML = '';
+            document.getElementById('listCount').innerText = res.length + ' คน';
+            
+            res.forEach((i) => {
+                let c = i.totalScore >= 0 ? 'text-green-600' : 'text-red-600';
+                
+                let adminActionBtns = '';
+                if (curUser.role === 'district') {
+                    adminActionBtns = `
+                        <button onclick="openEditOff('${i.idCard}')" class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs hover:bg-amber-100 ml-1 border border-amber-200 shadow-sm active:scale-95 transition mb-1 md:mb-0 w-full md:w-auto" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteOff('${i.idCard}', '${i.fullName}')" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs hover:bg-red-100 ml-1 border border-red-200 shadow-sm active:scale-95 transition mb-1 md:mb-0 w-full md:w-auto" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+                    `;
+                }
+
+                tb.innerHTML += `<tr class="hover:bg-slate-50 border-b">
+                    <td class="p-3"><div class="font-bold">${i.fullName}</div><div class="text-[10px] text-slate-500 font-mono">${i.position} | ID:${i.idCard}</div></td>
+                    <td class="p-3 text-sm">${i.village} <span class="text-[10px] text-slate-400 block mt-0.5">ต.${i.subdistrict}</span></td>
+                    <td class="p-3 text-center font-bold text-lg ${c}">${i.totalScore}</td>
+                    <td class="p-3 text-center min-w-[150px]">
+                        <button onclick="quickScore('${i.idCard}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs hover:bg-indigo-100 font-bold border border-indigo-100 shadow-sm active:scale-95 transition w-full md:w-auto mb-1">ให้คะแนน</button>
+                        <button onclick="manageHistory('${i.idCard}', '${i.fullName}')" class="bg-white px-3 py-1.5 rounded-lg text-xs hover:bg-slate-50 ml-1 border border-slate-200 shadow-sm active:scale-95 transition text-slate-600 w-full md:w-auto mb-1">ประวัติ</button>
+                        ${adminActionBtns}
+                    </td>
+                </tr>`;
+            });
+        }
+
+        // --- TARGET SELECTION (Shared logic for Score & Reset) ---
+        function updBaseVil() {
+            const s = document.getElementById('baseSub').value;
+            const vSel = document.getElementById('baseVil');
+            if(!s) { vSel.innerHTML='<option value="">- เลือกหมู่บ้าน -</option>'; return; }
+            const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.rawVillage).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
+            vSel.innerHTML='<option value="">- เลือกหมู่บ้าน -</option>' + vs.map(v=>`<option value="${v}">${v}</option>`).join('');
+        }
+        function updResetTargetBaseVil() {
+            const s = document.getElementById('resetTargetBaseSub').value;
+            const vSel = document.getElementById('resetTargetBaseVil');
+            if(!s) { vSel.innerHTML='<option value="">- เลือกหมู่บ้าน -</option>'; return; }
+            const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.rawVillage).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
+            vSel.innerHTML='<option value="">- เลือกหมู่บ้าน -</option>' + vs.map(v=>`<option value="${v}">${v}</option>`).join('');
+        }
+
+        function toggleSel(cb) { 
+            cb.checked ? globalSelections.add(cb.value) : globalSelections.delete(cb.value); 
+            const countDisplay = document.getElementById(document.getElementById('scoreModal').classList.contains('hidden') ? 'selCountReset' : 'selCount');
+            if(countDisplay) countDisplay.innerText = `เลือกแล้ว ${globalSelections.size} คน`;
+        }
+
+        function buildTargetList(mode, txt, baseSubId, baseVilId) {
+            let pool = allData;
+            let items = [];
+            let showBase = false, showCheck = true;
+
+            if (mode === 'tambon_except') {
+                showBase = true;
+                const bs = document.getElementById(baseSubId).value;
+                pool = bs ? pool.filter(x => x.subdistrict === bs) : [];
+            } else if (mode === 'village_except') {
+                showBase = true;
+                const bs = document.getElementById(baseSubId).value;
+                const bv = document.getElementById(baseVilId).value;
+                pool = (bs && bv) ? pool.filter(x => x.subdistrict === bs && x.rawVillage === bv) : [];
+            }
+
+            if (mode === 'multi_individual' || mode.includes('except')) {
+                items = pool.map(o => ({ id: o.idCard, label: o.fullName, sub: `${o.position} ต.${o.subdistrict}` }));
+            } else if (mode === 'multi_village') {
+                const vMap = new Map();
+                pool.forEach(o => vMap.set(`${o.subdistrict}|${o.rawVillage}`, `${o.village} (ต.${o.subdistrict})`));
+                for (let [k, v] of vMap) items.push({ id: k, label: v, sub: '' });
+            } else if (mode === 'multi_tambon') {
+                const sSet = new Set(pool.map(o => o.subdistrict));
+                sSet.forEach(s => items.push({ id: s, label: `ตำบล${s}`, sub: '' }));
+            } else if (mode === 'all') {
+                showCheck = false;
+            }
+            return { items: items.filter(i => i.label.toLowerCase().includes(txt) || i.sub.toLowerCase().includes(txt)), showBase, showCheck };
+        }
+
+        function renderTargetUI() {
+            const txt = document.getElementById('targetSearch').value.toLowerCase();
+            const mode = document.getElementById('targetMode').value;
+            const res = buildTargetList(mode, txt, 'baseSub', 'baseVil');
+            
+            document.getElementById('baseAreaDiv').className = res.showBase ? "md:col-span-2 grid grid-cols-2 gap-2" : "md:col-span-2 hidden grid-cols-2 gap-2";
+            if(res.showBase) {
+                document.getElementById('baseSub').parentElement.classList.remove('hidden');
+                document.getElementById('baseVil').parentElement.className = mode==='village_except' ? '' : 'hidden';
+            }
+            document.getElementById('targetSearchDiv').style.display = res.showCheck ? 'block' : 'none';
+
+            const container = document.getElementById('targetList'); container.innerHTML='';
+            if(res.showCheck) {
+                res.items.forEach(i => {
+                    let chk = globalSelections.has(i.id) ? 'checked' : '';
+                    container.innerHTML += `<label class="flex p-3 hover:bg-indigo-50 cursor-pointer transition">
+                        <input type="checkbox" value="${i.id}" ${chk} onchange="toggleSel(this)" class="mt-1 mr-3 rounded w-5 h-5 accent-indigo-600">
+                        <div><p class="text-sm font-bold text-slate-700">${i.label}</p><p class="text-[11px] text-slate-500">${i.sub}</p></div>
+                    </label>`;
+                });
+            }
+            document.getElementById('selCount').innerText = `เลือกแล้ว ${globalSelections.size} คน`;
+        }
+
+        function renderResetTargetUI() {
+            const txt = document.getElementById('resetTargetSearchBox').value.toLowerCase();
+            const mode = document.getElementById('resetTargetMode').value;
+            const res = buildTargetList(mode, txt, 'resetTargetBaseSub', 'resetTargetBaseVil');
+            
+            document.getElementById('resetBaseAreaDiv').className = res.showBase ? "md:col-span-2 grid grid-cols-2 gap-2" : "md:col-span-2 hidden grid-cols-2 gap-2";
+            if(res.showBase) {
+                document.getElementById('resetTargetBaseSub').parentElement.classList.remove('hidden');
+                document.getElementById('resetTargetBaseVil').parentElement.className = mode==='village_except' ? '' : 'hidden';
+            }
+            document.getElementById('resetTargetSearchDiv').style.display = res.showCheck ? 'block' : 'none';
+
+            const container = document.getElementById('resetTargetCheckboxes'); container.innerHTML='';
+            if(res.showCheck) {
+                res.items.forEach(i => {
+                    let chk = globalSelections.has(i.id) ? 'checked' : '';
+                    container.innerHTML += `<label class="flex p-3 hover:bg-red-50 cursor-pointer transition">
+                        <input type="checkbox" value="${i.id}" ${chk} onchange="toggleSel(this)" class="mt-1 mr-3 rounded w-5 h-5 accent-red-600">
+                        <div><p class="text-sm font-bold text-slate-700">${i.label}</p><p class="text-[11px] text-slate-500">${i.sub}</p></div>
+                    </label>`;
+                });
+            }
+        }
+
+        // --- SCORING ADMIN ---
+        function openScoreModal() {
+            openModal('scoreModal');
+            globalSelections.clear();
+            document.getElementById('targetSearch').value='';
+            document.getElementById('targetMode').value='multi_individual';
+            renderTargetUI(); initActivityRow();
+        }
+        function quickScore(id) { openScoreModal(); globalSelections.add(id); renderTargetUI(); }
+        
+        function initActivityRow() { actRows = []; addAct(); }
+        function addAct() { actRows.push({id:Date.now(), cat:'', name:'', date:new Date().toISOString().split('T')[0], type:'positive', score:'1', file:null}); renderActs(); }
+        
+        function renderActs() {
+            const con = document.getElementById('actContainer'); con.innerHTML='';
+            let opts = '<option value="">- เลือกหมวด -</option>' + criteria.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+            actRows.forEach((r, i) => {
+                con.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 relative shadow-sm transition">
+                    ${actRows.length > 1 ? `<button onclick="removeActivityRow(${r.id})" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 bg-white p-1 rounded-full shadow-sm"><i class="fa-solid fa-times w-5 h-5 flex justify-center items-center"></i></button>` : ''}
+                    <div class="mb-3"><span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase">กิจกรรม ${i+1}</span></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">หมวดหมู่</label><select class="w-full p-3 text-sm border rounded-xl bg-white outline-none focus:ring-1 focus:ring-indigo-400" onchange="updAct(${r.id},'cat',this.value)">${opts.replace(`value="${r.cat}"`,`value="${r.cat}" selected`)}</select></div>
+                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">ชื่อกิจกรรม</label><input type="text" class="w-full p-3 text-sm border rounded-xl bg-white outline-none focus:ring-1 focus:ring-indigo-400" placeholder="ระบุกิจกรรม..." value="${r.name}" onchange="updAct(${r.id},'name',this.value)"></div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">วันที่</label><input type="date" class="w-full p-3 text-sm border rounded-xl outline-none focus:ring-1" value="${r.date}" onchange="updAct(${r.id},'date',this.value)"></div>
+                        <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">รูปแบบ (+/-)</label><select class="w-full p-3 text-sm border rounded-xl font-bold outline-none" onchange="updAct(${r.id},'type',this.value)"><option value="positive" class="text-green-600" ${r.type==='positive'?'selected':''}>+ บวก</option><option value="negative" class="text-red-600" ${r.type==='negative'?'selected':''}>- หัก</option></select></div>
+                        <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">คะแนน</label><input type="number" class="w-full p-3 text-sm border rounded-xl text-center text-indigo-600 font-bold outline-none focus:ring-1" value="${r.score}" onchange="updAct(${r.id},'score',this.value)" min="0.5" step="0.5"></div>
+                        <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">หลักฐาน (Drive)</label><input type="file" class="w-full p-2.5 bg-white border rounded-xl text-[10px] mt-0.5" onchange="updAct(${r.id},'file',this.files[0])"></div>
+                    </div>
+                </div>`;
+            });
+        }
+        function removeActivityRow(id) { actRows = actRows.filter(r => r.id !== id); renderActs(); }
+        function updAct(id,f,v) { const r=actRows.find(x=>x.id===id); if(r) r[f]=v; }
+
+        function getB64(file) {
+            return new Promise((res) => {
+                if(!file) return res(null);
+                const reader = new FileReader(); 
+                reader.readAsDataURL(file);
+                reader.onload = () => res({fileName:file.name, fileMime:file.type, fileBase64:reader.result.split(',')[1]});
+                reader.onerror = () => res(null);
+            });
+        }
+
+        async function submitBatch() {
+            const mode = document.getElementById('targetMode').value;
+            const sels = Array.from(globalSelections);
+            if(mode !== 'all' && !sels.length) return Swal.fire('เตือน','กรุณาติ๊กเลือกเป้าหมายก่อนอย่างน้อย 1 คน','warning');
+            
+            let baseArea = "";
+            if(mode === 'tambon_except') baseArea = document.getElementById('baseSub').value;
+            if(mode === 'village_except') baseArea = document.getElementById('baseSub').value + "|" + document.getElementById('baseVil').value;
+
+            setLoad(true, "กำลังบันทึกคะแนน... (และอัปโหลดไฟล์)");
+            let acts = [];
+            for(let r of actRows) {
+                if(!r.cat || !r.name || !r.score) { setLoad(false); return Swal.fire('เตือน','กรอกข้อมูลกิจกรรมให้ครบทุกช่อง','warning'); }
+                let fData = await getB64(r.file);
+                acts.push({categoryId:r.cat, activityName:r.name, date:r.date, score:r.score, type:r.type, ...fData});
+            }
+
+            callServer('submitBatchScore', {
+                payload: {user: curUser.username, userName: curUser.name, targetMode: mode, baseArea: baseArea, selections: sels, activities: acts}
+            })
+            .then(res => {
+                setLoad(false);
+                if(res.success) { 
+                    Swal.fire('สำเร็จ',res.message,'success'); 
+                    closeModal('scoreModal');
+                    initAdmin(); 
+                } else Swal.fire('Error',res.message,'error');
+            })
+            .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        // --- EDIT HISTORY & EXPORT ---
+        function viewUserHistory() {
+            manageHistory(curUser.username, curUser.name);
+        }
+
+        function manageHistory(id, name) {
+            document.getElementById('histTitle').innerText = `ประวัติ: ${name}`;
+            openModal('histModal'); document.getElementById('histBody').innerHTML='<tr><td colspan="4" class="text-center p-8"><i class="fa-solid fa-spinner fa-spin text-indigo-500 text-2xl"></i></td></tr>';
+            
+            callServer('getHistoryData', { idCardOrHash: id })
+                .then(logs => {
+                    const tb = document.getElementById('histBody'); tb.innerHTML='';
+                    if(!logs.length) { tb.innerHTML='<tr><td colspan="4" class="text-center p-6 text-slate-400">ไม่มีประวัติ</td></tr>'; return; }
+                    
+                    logs.forEach(l => {
+                        let proof = l.proof ? (l.proof.startsWith('http') ? `<a href="${l.proof}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-100 whitespace-nowrap inline-flex items-center"><i class="fa-solid fa-paperclip mr-1"></i> ดูไฟล์</a>` : `<span class="text-[10px] text-red-500 font-bold bg-red-50 px-2 py-1 rounded" title="${l.proof}">อัปโหลดไม่สำเร็จ</span>`) : '-';
+                        let action = proof;
+                        
+                        if(curUser.role==='user' && l.type==='negative') {
+                            if (l.isAppealed) {
+                                action += `<div class="mt-2 text-[10px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg font-bold w-full text-center border border-slate-200">ยื่นอุทธรณ์แล้ว</div>`;
+                            } else {
+                                action += `<button onclick="openAppeal('${l.primaryCatId}', '${l.activityName}', ${l.rawScore}, '${l.logIndex}')" class="mt-2 text-[10px] bg-orange-500 text-white px-3 py-1.5 rounded-lg font-bold w-full shadow-sm hover:bg-orange-600">ยื่นอุทธรณ์</button>`;
+                            }
+                        } else if (curUser.role === 'district') {
+                            action += `<div class="flex gap-2 mt-2 justify-center">
+                                <button onclick="openEditLog('${l.logIndex}', '${id}', '${l.primaryCatId}', '${l.activityName}', '${l.activityDetail}', ${l.rawScore})" class="bg-amber-100 text-amber-600 p-2 rounded-lg hover:bg-amber-200"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                <button onclick="deleteLog('${l.logIndex}', '${id}')" class="bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                            </div>`;
+                        }
+                        
+                        let scoreHtml = `<span class="${l.type==='positive'?'text-green-600':'text-red-600'}">${l.scoreStr}</span>`;
+
+                        tb.innerHTML += `<tr class="border-b border-slate-50 hover:bg-slate-50 transition">
+                            <td class="p-4 text-xs text-slate-500 font-mono align-top pt-5">${l.dateStr}</td>
+                            <td class="p-4 text-sm align-top">
+                                <div class="text-slate-800 font-bold">${l.activityName}</div>
+                                <div class="mb-1.5">${l.categoryName}</div>
+                                <div class="text-xs text-slate-600 mt-1 whitespace-pre-wrap">${l.activityDetail}</div>
+                                <div class="text-[10px] text-slate-400 mt-2"><i class="fa-solid fa-user-pen"></i> ผู้บันทึก: ${l.by}</div>
+                            </td>
+                            <td class="p-4 text-right font-bold text-xl align-top pt-5">${scoreHtml}</td>
+                            <td class="p-4 text-center align-top pt-5">${action}</td>
+                        </tr>`;
+                    });
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        function deleteLog(logIndex, idCard) {
+            Swal.fire({title: 'ลบประวัตินี้?', text: 'ก้อนคะแนนที่เลือกทั้งหมดจะถูกลบและคำนวณใหม่', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444'}).then(r => {
+                if(r.isConfirmed) {
+                    setLoad(true);
+                    callServer('deleteScoreLog', { payload: {logIndex: logIndex, idCard: idCard} })
+                        .then(res => {
+                            if(res.success) { initAdmin(); manageHistory(idCard, document.getElementById('histTitle').innerText.replace('ประวัติ: ','')); }
+                            else { setLoad(false); Swal.fire('Error', res.message, 'error'); }
+                        })
+                        .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                }
+            });
+        }
+        
+        function openEditLog(logIndex, idCard, catId, actName, actDetail, score) {
+            document.getElementById('editLogIndex').value = logIndex;
+            document.getElementById('editLogIdCard').value = idCard;
+            
+            let opts = ''; criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
+            const sel = document.getElementById('editLogCat'); sel.innerHTML = opts;
+            sel.value = catId;
+            
+            document.getElementById('editLogActName').value = actName;
+            document.getElementById('editLogActDetail').value = actDetail;
+            document.getElementById('editLogScore').value = Math.abs(score);
+            openModal('modal-edit-log');
+        }
+        
+        function saveEditLog() {
+            setLoad(true); closeModal('modal-edit-log');
+            const p = {
+                logIndex: document.getElementById('editLogIndex').value, idCard: document.getElementById('editLogIdCard').value,
+                newCatId: document.getElementById('editLogCat').value, newActName: document.getElementById('editLogActName').value, newActDetail: document.getElementById('editLogActDetail').value, newScore: document.getElementById('editLogScore').value
+            };
+            callServer('editScoreLog', { payload: p })
+                .then(r => {
+                    if(r.success) { initAdmin(); manageHistory(p.idCard, document.getElementById('histTitle').innerText.replace('ประวัติ: ','')); }
+                    else { setLoad(false); Swal.fire('Error', r.message, 'error'); }
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        function exportCSV() {
+            setLoad(true, "กำลังดึงข้อมูลแยกรายหมวดเพื่อสร้าง CSV...");
+            callServer('getAllLogsCSV')
+                .then(r => {
+                    setLoad(false);
+                    if(r.success) {
+                        const blob = new Blob([r.csv], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a"); link.href = url; link.download = "DOPA_Score_ByCriteria.csv"; link.click();
+                    } else Swal.fire('Error', r.message, 'error');
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        // --- REQUESTS & APPEALS (USER & ADMIN) ---
+        function getCriteriaOptions(selectedId='') {
+            let opts = '';
+            criteria.forEach(c => { opts += `<option value="${c.id}" ${c.id===selectedId?'selected':''}>${c.name}</option>`; });
+            return opts;
+        }
+
+        function openAppeal(catId, actName, score, logId) {
+            closeModal('histModal');
+            document.getElementById('appealLogId').value = logId;
+            document.getElementById('appealCatId').value = catId;
+            document.getElementById('appealTitle').value = actName;
+            document.getElementById('appealScore').value = Math.abs(score);
+            document.getElementById('appealDate').valueAsDate = new Date();
+            openModal('modal-appeal');
+        }
+
+        async function submitReq(type) {
+            let p = { reqType:type, idCard:curUser.username, fullName:curUser.name };
+            let file;
+            if (type === 'REQUEST') {
+                p.categoryId = document.getElementById('reqCat').value;
+                p.activityName = document.getElementById('reqTitle').value;
+                p.actDetail = document.getElementById('reqDesc').value;
+                p.actDate = document.getElementById('reqDate').value;
+                p.score = document.getElementById('reqScore').value;
+                file = document.getElementById('reqFile').files[0];
+            } else {
+                p.categoryId = document.getElementById('appealCatId').value;
+                p.activityName = document.getElementById('appealTitle').value;
+                p.actDetail = document.getElementById('appealDesc').value;
+                p.actDate = document.getElementById('appealDate').value;
+                p.score = document.getElementById('appealScore').value;
+                p.refLogId = document.getElementById('appealLogId').value;
+                file = document.getElementById('appealFile').files[0];
+            }
+
+            if(!p.categoryId || !p.activityName || !p.actDate || !file) return Swal.fire('เตือน','กรุณาระบุข้อมูลให้ครบ และแนบไฟล์หลักฐานประกอบ','warning');
+            
+            setLoad(true, "กำลังส่งข้อมูลเข้าสู่ระบบ...");
+            const fData = await getB64(file);
+            Object.assign(p, fData);
+            
+            callServer('submitRequest', { payload: p })
+                .then(r => {
+                    setLoad(false); closeModal(type==='REQUEST'?'modal-req':'modal-appeal');
+                    Swal.fire(r.success?'สำเร็จ':'Error', r.message, r.success?'success':'error');
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        function loadApprovalCenter() {
+            openModal('modal-approve');
+            const con = document.getElementById('approveContainer');
+            con.innerHTML = '<div class="text-center p-10"><i class="fa-solid fa-spinner fa-spin text-4xl text-amber-500"></i></div>';
+            
+            callServer('getPendingRequests', { role: curUser.role, filter: curUser.filter, username: curUser.username })
+                .then(reqs => {
+                    con.innerHTML = '';
+                    if(!reqs.length) { con.innerHTML = '<div class="text-center p-10 text-slate-500 bg-white rounded-2xl shadow-sm">ไม่มีคำร้องรอดำเนินการ</div>'; return; }
+                    
+                    reqs.forEach(r => {
+                        let proof = r.proof ? (r.proof.startsWith('http') ? `<a href="${r.proof}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs ml-2 hover:bg-blue-100 font-bold inline-flex items-center"><i class="fa-solid fa-paperclip mr-1"></i> ดูหลักฐานที่แนบ</a>` : `<span class="text-xs text-red-500 ml-2">อัปโหลดไม่สำเร็จ</span>`) : '';
+                        let badge = r.type === 'APPEAL' ? `<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-gavel"></i> อุทธรณ์</span>` : `<span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-hand-holding-hand"></i> ขอคะแนน</span>`;
+                        
+                        let actionHtml = '';
+                        if (r.type === 'APPEAL') {
+                            if (curUser.role === 'tambon') {
+                                actionHtml = `
+                                    <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">ให้คะแนนใหม่ (อุทธรณ์ - สูงสุด 2 คะแนน)</label>
+                                        <input type="number" id="apvScoreTam_${r.rowIdx}" class="w-full p-2 border rounded-lg text-center font-bold text-green-600 text-sm focus:ring-1 focus:ring-green-400 outline-none" value="${Math.abs(r.reqScore)}" step="0.5" max="2">
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-2">
+                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'RestoreScore', ${r.reqScore}, '${r.idCard}', null, null, null, 'APPEAL', '${r.refLogId}')" class="bg-green-100 text-green-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-green-200">อุทธรณ์ฟังขึ้น: คืนคะแนนเดิม</button>
+                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'EditScore', null, '${r.idCard}', '${r.catId}', '${r.activityName}', '${r.activityDetail}', 'APPEAL', '${r.refLogId}')" class="bg-blue-100 text-blue-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-200">อุทธรณ์ฟังขึ้น: แก้ไขคะแนนตามที่ระบุ</button>
+                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'Forward', 0, null, null, null, null, 'APPEAL')" class="bg-indigo-100 text-indigo-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-200 mt-2">ส่งอุทธรณ์ให้อำเภอพิจารณา</button>
+                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'ConfirmDeduction', 0, null, null, null, null, 'APPEAL')" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-200">อุทธรณ์ฟังไม่ขึ้น: ยืนยันการหัก</button>
+                                    </div>
+                                `;
+                            } else if (curUser.role === 'district') {
+                                actionHtml = `
+                                    <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขหมวดคะแนน</label>
+                                        <select id="editCat_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none">${getCriteriaOptions(r.catId)}</select>
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขชื่อกิจกรรม/ผลงาน</label>
+                                        <input type="text" id="editActName_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" value="${r.activityName}">
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขรายละเอียด</label>
+                                        <textarea id="editActDetail_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" rows="2">${r.activityDetail}</textarea>
+                                        <div class="flex items-center justify-between border-t pt-3">
+                                            <label class="text-xs font-bold text-slate-700">ระบุคะแนนใหม่:</label>
+                                            <input type="number" id="apvScore_${r.rowIdx}" class="w-24 p-2 border rounded-lg text-center font-bold text-indigo-600 text-sm outline-none" value="${Math.abs(r.reqScore)}" step="0.5">
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-2">
+                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'RestoreScore', ${r.reqScore}, '${r.idCard}', null, null, null, 'APPEAL', '${r.refLogId}')" class="bg-green-100 text-green-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-green-200">อุทธรณ์ฟังขึ้น: คืนคะแนนเดิม</button>
+                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'EditScore', null, '${r.idCard}', '${r.catId}', '${r.activityName}', '${r.activityDetail}', 'APPEAL', '${r.refLogId}')" class="bg-blue-100 text-blue-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-200">อุทธรณ์ฟังขึ้น: แก้ไขคะแนนตามที่ระบุ</button>
+                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'ConfirmDeduction', 0, null, null, null, null, 'APPEAL')" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-200 mt-2">อุทธรณ์ฟังไม่ขึ้น: ยืนยันการหัก</button>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            if (curUser.role === 'tambon') {
+                                actionHtml = `
+                                    <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">ให้คะแนนอนุมัติ (ตำบลให้ได้สูงสุด 2 คะแนน)</label>
+                                        <input type="number" id="apvScoreTam_${r.rowIdx}" class="w-full p-2 border rounded-lg text-center font-bold text-green-600 text-sm focus:ring-1 focus:ring-green-400 outline-none" value="${Math.min(r.reqScore, 2)}" min="0.5" step="0.5" max="2">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'Rejected', 0)" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-red-200">ไม่อนุมัติ</button>
+                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'Approved', null, '${r.idCard}', '${r.catId}', '${r.activityName}', '${r.activityDetail}', '${r.type}')" class="bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-green-700">อนุมัติให้คะแนน</button>
+                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'Forward', 0)" class="col-span-2 bg-blue-100 text-blue-700 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-blue-200 mt-1">ส่งให้อำเภอ (กรณีขอเกิน 2 คะแนน)</button>
+                                    </div>
+                                `;
+                            } else if (curUser.role === 'district') {
+                                actionHtml = `
+                                    <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขหมวดคะแนน</label>
+                                        <select id="editCat_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none">${getCriteriaOptions(r.catId)}</select>
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขชื่อกิจกรรม/ผลงาน</label>
+                                        <input type="text" id="editActName_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" value="${r.activityName}">
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขรายละเอียดเพิ่มเติม</label>
+                                        <textarea id="editActDetail_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none" rows="2">${r.activityDetail}</textarea>
+                                        <div class="mt-4 flex items-center justify-between border-t pt-3">
+                                            <label class="text-xs font-bold text-slate-700">ปรับคะแนนอนุมัติ:</label>
+                                            <input type="number" id="apvScore_${r.rowIdx}" class="w-24 p-2 border rounded-lg text-center font-bold text-indigo-600 text-sm focus:ring-1 focus:ring-amber-400 outline-none" value="${Math.abs(r.reqScore)}" step="0.5">
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'Rejected', 0)" class="bg-red-600 text-white py-3 rounded-xl text-sm font-bold shadow-sm hover:bg-red-700">ปฏิเสธคำร้อง</button>
+                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'Approved', null, '${r.idCard}', '${r.catId}', '${r.activityName}', '${r.activityDetail}', '${r.type}')" class="bg-green-600 text-white py-3 rounded-xl text-sm font-bold shadow-sm hover:bg-green-700">อนุมัติ (บวกคะแนน)</button>
+                                    </div>
+                                `;
+                            }
+                        }
+
+                        let tamStatHTML = '';
+                        if (r.statTam === 'Approved') {
+                            tamStatHTML = '<span class="text-green-600"><i class="fa-solid fa-check-circle"></i> ปลัดตำบลเห็นชอบแล้ว</span>';
+                        } else if (r.statTam === 'Forwarded') {
+                            tamStatHTML = '<span class="text-blue-600"><i class="fa-solid fa-share"></i> ปลัดตำบลส่งต่อให้อำเภอ</span>';
+                        } else if (r.statTam === 'Rejected') {
+                            tamStatHTML = '<span class="text-red-600"><i class="fa-solid fa-times-circle"></i> ปลัดตำบลไม่อนุมัติ</span>';
+                        } else {
+                            tamStatHTML = '<span class="text-amber-500"><i class="fa-solid fa-clock"></i> รอปลัดตำบลพิจารณา</span>';
+                        }
+
+                        con.innerHTML += `
+                            <div class="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-6 hover:shadow-md transition">
+                                <div class="flex-grow">
+                                    <div class="flex items-center gap-3 mb-3">${badge} <span class="text-xs text-slate-400 font-mono">${r.date}</span></div>
+                                    <h4 class="font-bold text-slate-800 text-lg">${r.fullName} <span class="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md ml-1">ต.${r.subdistrict}</span></h4>
+                                    <div class="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                        <p class="text-xs text-indigo-500 font-bold uppercase mb-1">หมวดหมู่</p>
+                                        <p class="text-sm text-slate-800 font-bold mb-3">${r.category}</p>
+                                        <p class="text-xs text-indigo-500 font-bold uppercase mb-1">เรื่อง / ผลงาน</p>
+                                        <p class="text-sm text-slate-700 mb-3">${r.activityName}</p>
+                                        <p class="text-xs text-indigo-500 font-bold uppercase mb-1">รายละเอียดชี้แจง</p>
+                                        <p class="text-sm text-slate-600 italic whitespace-pre-wrap">${r.activityDetail}</p>
+                                    </div>
+                                    <div class="mt-4 flex items-center justify-between border-t pt-3">
+                                        <div class="flex items-center gap-2 text-sm text-slate-700"><b>คะแนนที่เกี่ยวข้อง:</b> <span class="bg-indigo-100 text-indigo-700 font-bold text-xl px-3 py-1 rounded-lg">${Math.abs(r.reqScore)}</span> ${proof}</div>
+                                    </div>
+                                    <div class="mt-3 text-xs bg-slate-50 p-2.5 rounded-xl inline-block border border-slate-200 font-bold">
+                                        สถานะ: ${tamStatHTML}
+                                    </div>
+                                </div>
+                                <div class="flex flex-col justify-end gap-2 border-t md:border-t-0 md:border-l pt-5 md:pt-0 pl-0 md:pl-6 min-w-[320px]">
+                                    ${actionHtml}
+                                </div>
+                            </div>
+                        `;
+                    });
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        function approveAction(rowIdx, role, action, score, idCard='', origCatId='', origActName='', origActDetail='', type='', refLogId='') {
+            let finalScore = score;
+            let finalCat = origCatId;
+            let finalActName = origActName;
+            let finalActDetail = origActDetail;
+
+            if (role === 'district' && (action === 'Approved' || action === 'EditScore')) {
+                finalScore = document.getElementById(`apvScore_${rowIdx}`).value;
+                finalCat = document.getElementById(`editCat_${rowIdx}`).value;
+                finalActName = document.getElementById(`editActName_${rowIdx}`).value;
+                finalActDetail = document.getElementById(`editActDetail_${rowIdx}`).value;
+            } else if (role === 'tambon' && (action === 'Approved' || action === 'EditScore')) {
+                finalScore = document.getElementById(`apvScoreTam_${rowIdx}`).value;
+                if (Math.abs(finalScore) > 2 && action !== 'RestoreScore') {
+                    Swal.fire('ข้อผิดพลาด', 'ตำบลอนุมัติหรือแก้ไขได้ไม่เกิน 2 คะแนน โปรดส่งให้อำเภอพิจารณา', 'error');
+                    return;
+                }
+            }
+            
+            if (action === 'RestoreScore') {
+                finalScore = score; 
+            }
+            
+            setLoad(true, "กำลังประมวลผล...");
+            callServer('processRequest', {
+                payload: {
+                    rowIdx: rowIdx, role: role, action: action, approvedScore: finalScore, 
+                    idCard: idCard, editedCat: finalCat, editedActName: finalActName, 
+                    editedActDetail: finalActDetail, reqType: type, adminName: curUser.name,
+                    refLogId: refLogId
+                }
+            })
+            .then(r => {
+                setLoad(false); 
+                if(r.success) {
+                    Swal.fire('สำเร็จ', r.message, 'success');
+                    loadApprovalCenter(); 
+                    initAdmin(); 
+                } else {
+                    Swal.fire('Error', r.message, 'error');
+                }
+            })
+            .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        function loadMyRequestsStatus() {
+            openModal('modal-my-reqs');
+            const con = document.getElementById('myReqsContainer');
+            con.innerHTML = '<div class="text-center p-10"><i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-500"></i></div>';
+            
+            callServer('getPendingRequests', { role: 'user', filter: null, username: curUser.username })
+                .then(reqs => {
+                    con.innerHTML = '';
+                    if(!reqs.length) { con.innerHTML = '<div class="text-center p-10 text-slate-500 bg-white rounded-2xl shadow-sm">ไม่มีคำร้องหรืออุทธรณ์ในระบบ</div>'; return; }
+                    
+                    reqs.forEach(r => {
+                        let badge = r.type === 'APPEAL' ? `<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold">อุทธรณ์</span>` : `<span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold">ขอคะแนน</span>`;
+                        
+                        let statT = '', statD = '';
+                        if (r.statTam === 'Approved') {
+                            statT = '<span class="text-green-600 bg-green-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check"></i> อนุมัติ</span>';
+                            statD = '<span class="text-slate-400 font-bold">-</span>';
+                        } else if (r.statTam === 'Forwarded') {
+                            statT = '<span class="text-blue-600 bg-blue-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-share"></i> เห็นชอบ</span>';
+                            if (r.statDist === 'Approved') statD = '<span class="text-green-600 bg-green-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-double"></i> อนุมัติ (บวกคะแนนแล้ว)</span>';
+                            else if (r.statDist === 'Rejected') statD = '<span class="text-red-600 bg-red-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-times"></i> ปฏิเสธ</span>';
+                            else statD = '<span class="text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">รอพิจารณา</span>';
+                        } else if (r.statTam === 'Rejected') {
+                            statT = '<span class="text-red-600 bg-red-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-times"></i> ไม่อนุมัติ</span>';
+                            statD = '<span class="text-slate-400 font-bold">-</span>';
+                        } else {
+                            statT = '<span class="text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">รอพิจารณา</span>';
+                            statD = '<span class="text-slate-400 font-bold">-</span>';
+                        }
+
+                        con.innerHTML += `
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <div class="flex items-center gap-3">${badge} <span class="text-xs text-slate-400 font-mono">${r.date}</span></div>
+                                    <div class="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">เกี่ยวข้อง <span class="text-indigo-600">${Math.abs(r.reqScore)}</span> คะแนน</div>
+                                </div>
+                                <p class="text-sm font-bold text-slate-800 mb-1">${r.category}</p>
+                                <p class="text-sm text-slate-700 font-medium mb-1">${r.activityName}</p>
+                                <p class="text-xs text-slate-500 mb-3 whitespace-pre-wrap italic">${r.activityDetail}</p>
+                                <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 text-xs gap-4">
+                                    <div class="text-center p-2 rounded-xl border border-slate-100"><b class="text-slate-500 block mb-1">ความเห็นตำบล:</b> ${statT}</div>
+                                    <div class="text-center p-2 rounded-xl border border-slate-100"><b class="text-slate-500 block mb-1">ผลอนุมัติอำเภอ:</b> ${statD}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        // --- TOOLS ---
+        function openResetModal() {
+            openModal('modal-reset');
+            globalSelections.clear();
+            document.getElementById('resetTargetSearchBox').value='';
+            document.getElementById('resetTargetMode').value='all';
+            document.getElementById('selCountReset') ? document.getElementById('selCountReset').innerText = `เลือกแล้ว 0 คน` : null;
+            renderResetTargetUI();
+        }
+
+        function doReset() {
+            const mode = document.getElementById('resetTargetMode').value;
+            const sels = Array.from(globalSelections);
+            if(mode !== 'all' && !sels.length) return Swal.fire('เตือน','เลือกเป้าหมายก่อน','warning');
+            
+            let baseArea = "";
+            if(mode === 'tambon_except') baseArea = document.getElementById('resetTargetBaseSub').value;
+            if(mode === 'village_except') baseArea = document.getElementById('resetTargetBaseSub').value + "|" + document.getElementById('resetTargetBaseVil').value;
+
+            Swal.fire({title:'ยืนยันล้างข้อมูลเป็น 0 ?', text:'ประวัติและคะแนนจะถูกลบ ไม่สามารถกู้คืนได้', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc2626'}).then(r => {
+                if(r.isConfirmed){
+                    setLoad(true, "กำลังล้างข้อมูล...");
+                    callServer('resetScores', { payload: {user:curUser.username, targetMode:mode, baseArea:baseArea, selections:sels} })
+                        .then(res => {
+                            if(res.success) { initAdmin(); closeModal('modal-reset'); Swal.fire('สำเร็จ',res.message,'success'); }
+                            else { setLoad(false); Swal.fire('Error', res.message, 'error'); }
+                        })
+                        .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                }
+            });
+        }
+
+        // ฟังก์ชันแก้ไขรายชื่อบุคคล
+        function openEditOff(idCard) {
+            const person = allData.find(x => x.idCard === idCard);
+            if(!person) return;
+            
+            if(!document.getElementById('editOffModal')) {
+                const modalHtml = `
+                <div id="editOffModal" class="hidden fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div class="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-md shadow-2xl">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <h3 class="font-bold text-amber-600 text-xl flex items-center gap-2"><i class="fa-solid fa-user-pen"></i> แก้ไขรายชื่อ</h3>
+                            <button onclick="closeModal('editOffModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-times text-xl"></i></button>
+                        </div>
+                        <div class="space-y-4">
+                            <input type="hidden" id="editOffId">
+                            <input id="editOffName" class="w-full p-3.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-slate-50" placeholder="ชื่อ - นามสกุล">
+                            <select id="editOffPos" class="w-full p-3.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-slate-50 cursor-pointer">
+                                <option>กำนัน</option><option>ผู้ใหญ่บ้าน</option><option>ผปค.</option><option>ผรส.</option><option>สารวัตรกำนัน</option><option>แพทย์ประจำตำบล</option>
+                            </select>
+                            <div class="grid grid-cols-2 gap-3">
+                                <input id="editOffMoo" class="w-full p-3.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-slate-50" placeholder="หมู่ที่ (ตัวเลข)">
+                                <input id="editOffVil" class="w-full p-3.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-slate-50" placeholder="ชื่อหมู่บ้าน">
+                            </div>
+                            <input id="editOffSub" class="w-full p-3.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 bg-slate-50" placeholder="ตำบล">
+                        </div>
+                        <div class="flex gap-3 mt-8">
+                            <button onclick="closeModal('editOffModal')" class="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">ยกเลิก</button>
+                            <button onclick="saveEditOff()" class="flex-1 py-3.5 bg-amber-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-amber-200 hover:bg-amber-600 active:scale-95 transition-transform"><i class="fa-solid fa-save mr-1"></i> บันทึกแก้ไข</button>
+                        </div>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            }
+            
+            document.getElementById('editOffId').value = person.idCard;
+            document.getElementById('editOffName').value = person.fullName;
+            document.getElementById('editOffPos').value = person.position;
+            document.getElementById('editOffMoo').value = person.moo;
+            document.getElementById('editOffVil').value = person.rawVillage;
+            document.getElementById('editOffSub').value = person.subdistrict;
+            
+            openModal('editOffModal');
+        }
+
+        function saveEditOff() {
+            const p = { 
+                idCard: document.getElementById('editOffId').value, 
+                fullName: document.getElementById('editOffName').value, 
+                position: document.getElementById('editOffPos').value, 
+                moo: document.getElementById('editOffMoo').value, 
+                village: document.getElementById('editOffVil').value, 
+                subdistrict: document.getElementById('editOffSub').value 
+            };
+            if(!p.fullName || !p.position || !p.subdistrict) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
+            
+            setLoad(true, "กำลังบันทึกการแก้ไข..."); 
+            callServer('manageOfficial', { manageAction: 'edit', data: p })
+                .then(r => { 
+                    setLoad(false);
+                    if(r.success){ 
+                        initAdmin(); 
+                        closeModal('editOffModal'); 
+                        Swal.fire({icon: 'success', title: 'สำเร็จ', text: r.message, timer: 1500, showConfirmButton: false});
+                    } else Swal.fire('เกิดข้อผิดพลาด', r.message, 'error');
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        // ฟังก์ชันลบรายชื่อบุคคล
+        function deleteOff(idCard, name) {
+            Swal.fire({
+                title: `ยืนยันลบรายชื่อ?`, 
+                text: `คุณต้องการลบรายชื่อ "${name}" ออกจากระบบใช่หรือไม่? ข้อมูลนี้ไม่สามารถกู้คืนได้`, 
+                icon: 'warning', 
+                showCancelButton: true, 
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'ลบทิ้ง',
+                cancelButtonText: 'ยกเลิก'
+            }).then(r => {
+                if(r.isConfirmed) {
+                    setLoad(true, "กำลังลบรายชื่อ...");
+                    callServer('manageOfficial', { manageAction: 'delete', data: {idCard: idCard} })
+                        .then(res => {
+                            setLoad(false);
+                            if(res.success) { 
+                                initAdmin(); 
+                                Swal.fire({icon: 'success', title: 'สำเร็จ', text: res.message, timer: 1500, showConfirmButton: false});
+                            } else Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
+                        })
+                        .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                }
+            });
+        }
+
+        function saveOff() {
+            const p = { idCard:document.getElementById('newId').value, fullName:document.getElementById('newName').value, position:document.getElementById('newPos').value, moo:document.getElementById('newMoo').value, village:document.getElementById('newVil').value, subdistrict:document.getElementById('newSub').value };
+            setLoad(true); 
+            callServer('manageOfficial', { manageAction: 'add', data: p })
+                .then(r => { 
+                    if(r.success){ initAdmin(); closeModal('offModal'); } 
+                    setLoad(false); 
+                    Swal.fire(r.success?'สำเร็จ':'Error', r.message, r.success?'success':'error'); 
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+
+        function changePass() {
+            const oldP = document.getElementById('oldPass').value, newP = document.getElementById('newPass').value;
+            setLoad(true); 
+            callServer('changePassword', { user: curUser.username, oldP: oldP, newP: newP })
+                .then(r => { 
+                    setLoad(false); 
+                    Swal.fire(r.success?'สำเร็จ':'Error', r.message, r.success?'success':'error'); 
+                    if(r.success) closeModal('modal-settings'); 
+                })
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        }
+    </script>
+</body>
+</html>
