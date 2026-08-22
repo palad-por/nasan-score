@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สรุปผลคะแนน DOPA NASAN Score</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
+        .glass-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .rank-1 { background-color: #FEF9C3; color: #854D0E; border: 1px solid #FDE047; }
+        .rank-2 { background-color: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
+        .rank-3 { background-color: #FFEDD5; color: #9A3412; border: 1px solid #FDBA74; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="glass-header text-white shadow-lg pb-24">
+        <div class="container mx-auto px-4 pt-6 pb-6">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-white/20 p-3 rounded-full backdrop-blur-sm shadow-sm"><i class="fa-solid fa-trophy text-2xl"></i></div>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold">สรุปผลคะแนนกำนัน ผู้ใหญ่บ้าน ฯลฯ</h1>
+                        <p class="text-white/90 text-xs md:text-sm mt-1">อำเภอบ้านนาสาร จังหวัดสุราษฎร์ธานี</p>
+                    </div>
+                </div>
+                <button onclick="goToLogin()" class="bg-white/10 hover:bg-white/25 border border-white/30 px-3 md:px-4 py-2 rounded-full text-[10px] md:text-xs font-bold transition flex items-center shadow-md backdrop-blur-sm whitespace-nowrap active:scale-95">
+                    <i class="fa-solid fa-user-shield mr-1.5 md:mr-2"></i> เข้าสู่ระบบ
+                </button>
+            </div>
+            <div class="mt-6 flex items-center text-sm text-white/90 bg-black/10 w-fit px-4 py-1.5 rounded-full">
+                <i class="fa-regular fa-clock mr-2"></i> อัปเดตล่าสุด: <span id="lastUpdate" class="font-bold ml-1 mr-3">กำลังโหลด...</span>
+                <button onclick="fetchData()" class="hover:text-yellow-300 transition active:scale-95" title="รีเฟรชข้อมูล"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 -mt-16 flex-grow pb-10">
+        <!-- Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-purple-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
+                <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">ทั้งหมด</p><h3 class="text-3xl md:text-4xl font-bold text-slate-800 mt-1" id="statTotal">0</h3></div>
+                <div class="bg-purple-50 w-12 h-12 rounded-full text-purple-600 hidden sm:flex items-center justify-center text-xl border border-purple-100"><i class="fa-solid fa-users"></i></div>
+            </div>
+            <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-blue-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
+                <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">คะแนนสูงสุด</p><h3 class="text-3xl md:text-4xl font-bold text-blue-600 mt-1" id="statMax">0</h3></div>
+                <div class="bg-blue-50 w-12 h-12 rounded-full text-blue-600 hidden sm:flex items-center justify-center text-xl border border-blue-100"><i class="fa-solid fa-arrow-trend-up"></i></div>
+            </div>
+            <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-red-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
+                <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">คะแนนต่ำสุด</p><h3 class="text-3xl md:text-4xl font-bold text-red-600 mt-1" id="statMin">0</h3></div>
+                <div class="bg-red-50 w-12 h-12 rounded-full text-red-600 hidden sm:flex items-center justify-center text-xl border border-red-100"><i class="fa-solid fa-arrow-trend-down"></i></div>
+            </div>
+            <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-green-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
+                <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">คะแนนเฉลี่ย</p><h3 class="text-3xl md:text-4xl font-bold text-green-600 mt-1" id="statAvg">0.0</h3></div>
+                <div class="bg-green-50 w-12 h-12 rounded-full text-green-600 hidden sm:flex items-center justify-center text-xl border border-green-100"><i class="fa-solid fa-chart-line"></i></div>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="bg-white rounded-3xl shadow-lg overflow-hidden border border-slate-100">
+            <div class="p-5 md:p-6 border-b bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                <h2 class="text-lg md:text-xl font-bold text-slate-800"><i class="fa-solid fa-ranking-star text-yellow-500 mr-2 text-2xl"></i> อันดับคะแนนรวม</h2>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <select id="filterSub" onchange="filterList()" class="border p-2.5 rounded-xl text-sm w-full md:w-auto outline-none focus:ring-2 focus:ring-indigo-400 bg-white shadow-sm"><option value="">ทุกตำบล</option></select>
+                    <select id="filterVil" onchange="filterList()" class="border p-2.5 rounded-xl text-sm w-full md:w-auto outline-none focus:ring-2 focus:ring-indigo-400 bg-white shadow-sm"><option value="">ทุกหมู่บ้าน</option></select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left min-w-[500px]">
+                    <thead class="bg-white text-slate-400 text-xs uppercase font-bold border-b border-slate-100 tracking-wider">
+                        <tr>
+                            <th class="p-5 text-center w-20">อันดับ</th>
+                            <th class="p-5">ชื่อ - สกุล / ตำแหน่ง</th>
+                            <th class="p-5">พื้นที่รับผิดชอบ</th>
+                            <th class="p-5 text-center">คะแนนรวม</th>
+                            <th class="p-5 text-center w-28">ประวัติ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="boardBody" class="text-slate-700 divide-y divide-slate-50 text-sm">
+                        <tr><td colspan="5" class="text-center p-10 text-indigo-500"><i class="fa-solid fa-spinner fa-spin text-3xl mb-3"></i><br><span class="font-bold">กำลังดึงข้อมูลล่าสุด...</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- History Modal -->
+    <div id="histModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white w-full h-full md:h-[85vh] md:max-w-4xl md:rounded-3xl flex flex-col shadow-2xl">
+            <div class="p-5 border-b bg-slate-800 text-white md:rounded-t-3xl flex justify-between items-center flex-none">
+                <div>
+                    <h3 class="font-bold text-xl" id="histTitle">ประวัติคะแนน</h3>
+                    <p class="text-sm text-slate-300 mt-1" id="histSub">กำลังโหลด...</p>
+                </div>
+                <button onclick="document.getElementById('histModal').classList.add('hidden')" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-700 transition active:scale-95"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+            <div class="flex-grow overflow-auto p-4 md:p-6 custom-scroll relative bg-slate-50">
+                <table class="w-full text-left bg-white rounded-2xl shadow-sm overflow-hidden min-w-[500px]">
+                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold border-b border-slate-100">
+                        <tr>
+                            <th class="p-4 w-28">วันที่</th>
+                            <th class="p-4">รายละเอียดกิจกรรม</th>
+                            <th class="p-4 text-right w-24">คะแนน</th>
+                            <th class="p-4 text-center w-28">หลักฐาน</th>
+                        </tr>
+                    </thead>
+                    <tbody id="histBody" class="divide-y divide-slate-50 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // ตั้งค่า API_URL ให้เป็น Web App URL ของ Google Apps Script ที่คุณ Deploy 
+        // =========================================================================
+        const API_URL = "https://script.google.com/macros/s/AKfycbwTSWRzl4jwz8gBpYIF9EQ2nIolTBummoXhFYB82EMKCS-UES1Xeja96XV9mX7rKR7b5w/exec"; 
+
+        async function callServer(action, data = {}) {
+            if (API_URL === "YOUR_WEB_APP_URL_HERE") {
+                throw new Error("กรุณาใส่ API_URL ที่บรรทัด 117 ก่อนใช้งานครับ");
+            }
+            const payload = { action: action, ...data };
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Network error');
+                return await response.json();
+            } catch (error) {
+                console.error("API Error:", error);
+                throw error;
+            }
+        }
+
+        let allData = [];
+
+        window.onload = function() {
+            fetchData();
+            setInterval(fetchData, 60000); // Auto-refresh every 60 seconds
+        };
+
+        function goToLogin() {
+            document.getElementById('lastUpdate').innerText = "กำลังเปลี่ยนหน้า...";
+            window.location.href = "admin.html"; // เปลี่ยนให้ไปหน้า admin.html บน Github
+        }
+
+        function fetchData() {
+            callServer('getDashboardData')
+                .then(d => {
+                    allData = d;
+                    
+                    const sel = document.getElementById('filterSub');
+                    const curVal = sel.value;
+                    
+                    const subs = [...new Set(d.map(i=>i.subdistrict).filter(Boolean))].sort();
+                    sel.innerHTML = '<option value="">ทุกตำบล</option>' + subs.map(x=>`<option value="${x}">${x}</option>`).join('');
+                    sel.value = curVal;
+                    
+                    document.getElementById('lastUpdate').innerText = new Date().toLocaleString('th-TH');
+                    filterList();
+                })
+                .catch(err => {
+                    console.error("Error fetching data:", err);
+                    document.getElementById('lastUpdate').innerText = "โหลดข้อมูลล้มเหลว";
+                });
+        }
+
+        function filterList() {
+            const s = document.getElementById('filterSub').value;
+            const vSel = document.getElementById('filterVil');
+            
+            if(!s) { vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>'; } 
+            else {
+                const curV = vSel.value;
+                const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.village).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
+                vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>' + vs.map(v=>`<option value="${v}">${v}</option>`).join('');
+                vSel.value = curV;
+            }
+
+            const v = vSel.value;
+            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.village===v));
+            renderStats(res); renderTable(res);
+        }
+
+        function renderStats(d) {
+            document.getElementById('statTotal').innerText = d.length;
+            document.getElementById('statMax').innerText = d.length ? Math.max(...d.map(o=>o.totalScore)) : 0;
+            document.getElementById('statMin').innerText = d.length ? Math.min(...d.map(o=>o.totalScore)) : 0;
+            document.getElementById('statAvg').innerText = d.length ? (d.reduce((a,b)=>a+b.totalScore,0)/d.length).toFixed(1) : "0.0";
+        }
+
+        function renderTable(data) {
+            const tb = document.getElementById('boardBody'); tb.innerHTML = '';
+            if(!data.length) { tb.innerHTML='<tr><td colspan="5" class="text-center p-10 text-slate-400">ไม่พบข้อมูลในพื้นที่ที่เลือก</td></tr>'; return; }
+
+            data.forEach((i, idx) => {
+                let rCls = 'bg-slate-100 text-slate-500', rIcon = `#${idx+1}`;
+                if(idx===0) { rCls='rank-1 shadow-md'; rIcon='<i class="fa-solid fa-trophy text-yellow-700"></i>'; }
+                else if(idx===1) { rCls='rank-2 shadow-md'; rIcon='<i class="fa-solid fa-medal text-slate-600"></i>'; }
+                else if(idx===2) { rCls='rank-3 shadow-md'; rIcon='<i class="fa-solid fa-medal text-orange-700"></i>'; }
+
+                let sCls = i.totalScore < 60 ? 'text-red-600' : (i.totalScore <= 89 ? 'text-green-600' : 'text-blue-600');
+
+                tb.innerHTML += `<tr class="hover:bg-indigo-50/30 transition duration-200">
+                    <td class="p-4 text-center"><div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center ${rCls} font-bold text-sm">${rIcon}</div></td>
+                    <td class="p-4"><div class="font-bold text-slate-800 text-base">${i.fullName}</div><div class="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded w-fit mt-1 border border-slate-200">${i.position}</div></td>
+                    <td class="p-4 text-sm text-slate-600">${i.village} <span class="text-[10px] text-slate-400 block mt-0.5 font-bold">ต.${i.subdistrict}</span></td>
+                    <td class="p-4 text-center font-bold text-2xl ${sCls}">${i.totalScore}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="viewHist('${i.idCardHash}', '${i.fullName}', '${i.position} ${i.village}')" class="text-indigo-600 bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm whitespace-nowrap active:scale-95"><i class="fa-solid fa-clock-rotate-left mr-1"></i> ประวัติ</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function viewHist(idHash, name, pos) {
+            document.getElementById('histTitle').innerText = name;
+            document.getElementById('histSub').innerText = pos;
+            document.getElementById('histModal').classList.remove('hidden');
+            const tb = document.getElementById('histBody');
+            
+            tb.innerHTML = '<tr><td colspan="4" class="text-center p-10 text-indigo-500"><i class="fa-solid fa-spinner fa-spin text-3xl"></i></td></tr>';
+            
+            callServer('getHistoryData', { idCardOrHash: idHash, isHash: true, forDashboard: true })
+                .then(logs => {
+                    tb.innerHTML = '';
+                    if(!logs.length) { tb.innerHTML='<tr><td colspan="4" class="text-center p-8 text-slate-400 bg-slate-50">ยังไม่มีประวัติการประเมิน</td></tr>'; return; }
+                    
+                    logs.forEach(l => {
+                        let proof = l.proof ? (l.proof.startsWith('http') ? `<a href="${l.proof}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition whitespace-nowrap flex items-center justify-center gap-1"><i class="fa-solid fa-paperclip"></i> ดูไฟล์</a>` : `<span class="text-[10px] text-red-500 font-bold bg-red-50 px-2 py-1 rounded" title="${l.proof}">อัปโหลดไม่สำเร็จ</span>`) : '-';
+                        
+                        let scoreHtml = `<span class="${l.type==='positive'?'text-green-600':'text-red-600'}">${l.scoreStr}</span>`;
+                        
+                        tb.innerHTML += `<tr class="hover:bg-slate-50 transition border-b border-slate-50">
+                            <td class="p-4 text-xs text-slate-500 font-mono align-top pt-5">${l.dateStr}</td>
+                            <td class="p-4 text-sm align-top">
+                                <div class="text-slate-800 font-medium leading-relaxed">${l.activityName}</div>
+                            </td>
+                            <td class="p-4 text-right font-bold text-xl align-top pt-5">${scoreHtml}</td>
+                            <td class="p-4 text-center align-top pt-5">${proof}</td>
+                        </tr>`;
+                    });
+                })
+                .catch(err => {
+                    console.error("Error fetching history:", err);
+                    tb.innerHTML = '<tr><td colspan="4" class="text-center p-8 text-red-500">โหลดข้อมูลล้มเหลว</td></tr>';
+                });
+        }
+    </script>
+</body>
+</html>
