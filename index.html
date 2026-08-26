@@ -7,6 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+
     <style>
         body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
         .glass-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
@@ -36,7 +42,7 @@
                 </button>
             </div>
             <div class="mt-6 flex items-center text-sm text-white/90 bg-black/10 w-fit px-4 py-1.5 rounded-full">
-                <i class="fa-regular fa-clock mr-2"></i> อัปเดตล่าสุด: <span id="lastUpdate" class="font-bold ml-1 mr-3">กำลังโหลด...</span>
+                <i class="fa-regular fa-clock mr-2"></i> อัปเดตล่าสุด: <span id="lastUpdate" class="font-bold ml-1 mr-3">กำลังโหลดข้อมูลอัตโนมัติ...</span>
                 <button onclick="fetchData()" class="hover:text-yellow-300 transition active:scale-95" title="รีเฟรชข้อมูล"><i class="fa-solid fa-rotate-right"></i></button>
             </div>
         </div>
@@ -105,9 +111,9 @@
                 <table class="w-full text-left bg-white rounded-2xl shadow-sm overflow-hidden min-w-[500px]">
                     <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold border-b border-slate-100">
                         <tr>
-                            <th class="p-4 w-28">วันที่</th>
+                            <th class="p-4 w-28 text-center">วันที่</th>
                             <th class="p-4">รายละเอียดกิจกรรม</th>
-                            <th class="p-4 text-right w-24">คะแนน</th>
+                            <th class="p-4 text-center w-24">คะแนน</th>
                             <th class="p-4 text-center w-28">หลักฐาน</th>
                         </tr>
                     </thead>
@@ -119,71 +125,70 @@
 
     <script>
         // =========================================================================
-        // ตั้งค่า API_URL ให้เป็น Web App URL ของ Google Apps Script ที่คุณ Deploy 
+        // ตั้งค่า Firebase Configuration
         // =========================================================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbwTSWRzl4jwz8gBpYIF9EQ2nIolTBummoXhFYB82EMKCS-UES1Xeja96XV9mX7rKR7b5w/exec"; 
+        const firebaseConfig = {
+          apiKey: "AIzaSyBPC8Wcv5InhI9O-2aMfvclF3fBtqSo1xo",
+          authDomain: "dopa-nasan-score.firebaseapp.com",
+          projectId: "dopa-nasan-score",
+          storageBucket: "dopa-nasan-score.firebasestorage.app",
+          messagingSenderId: "678813152611",
+          appId: "1:678813152611:web:959239d16e296a16cc0f56",
+          measurementId: "G-4QN247NQTT"
+        };
 
-        async function callServer(action, data = {}, maxRetries = 3) {
-            if (API_URL === "YOUR_WEB_APP_URL_HERE") {
-                throw new Error("กรุณานำ Web App URL จาก Google Apps Script มาใส่ในตัวแปร API_URL ก่อนใช้งานครับ");
-            }
-            
-            const payload = { action: action, ...data };
-            
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    // หากไม่ใช่รอบแรก ให้แสดงข้อความว่ากำลังพยายามใหม่
-                    if (i > 0) {
-                        const loaderText = document.getElementById('loading-text') || document.getElementById('histLoading');
-                        if (loaderText && loaderText.innerText) {
-                            if(loaderText.id === 'loading-text') loaderText.innerText = `กำลังพยายามเชื่อมต่อใหม่ (${i}/${maxRetries})...`;
-                        }
-                    }
-
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (!response.ok) throw new Error('Network error');
-                    return await response.json(); // ถ้าสำเร็จ คืนค่ากลับทันทีและจบการทำงาน
-                    
-                } catch (error) {
-                    console.warn(`การเชื่อมต่อขัดข้อง ล้มเหลวครั้งที่ ${i + 1} กำลังพยายามใหม่...`, error);
-                    
-                    // ถ้าลองจนครบโควต้า (3 ครั้ง) แล้วยังพังอยู่ ให้โยน Error ออกไปแสดงผล
-                    if (i === maxRetries - 1) {
-                        throw new Error("เซิร์ฟเวอร์ตอบสนองช้ากว่าปกติ (Network Error) โปรดตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง");
-                    }
-                    
-                    // หน่วงเวลาก่อนลองเชื่อมต่อใหม่ (รอบสองรอ 1 วินาที, รอบสามรอ 2 วินาที)
-                    await new Promise(res => setTimeout(res, 1000 * (i + 1)));
-                }
-            }
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const appId = 'dopa-nasan-score';
+        const basePath = `artifacts/${appId}/public/data`;
 
         let allData = [];
 
+        // โหลดข้อมูลอัตโนมัติเมื่อเปิดหน้าเว็บ โดยรอจนกว่าจะ Auth เสร็จ
         window.onload = function() {
-            fetchData();
-            setInterval(fetchData, 60000); // Auto-refresh every 60 seconds
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    fetchData(); 
+                } else {
+                    auth.signInAnonymously().catch((error) => {
+                        console.error("Authentication Error:", error);
+                        document.getElementById('lastUpdate').innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+                    });
+                }
+            });
         };
 
         function goToLogin() {
             document.getElementById('lastUpdate').innerText = "กำลังเปลี่ยนหน้า...";
-            window.location.href = "admin.html"; // เปลี่ยนให้ไปหน้า admin.html บน Github
+            window.location.href = "admin.html"; 
         }
 
         function fetchData() {
-            callServer('getDashboardData')
-                .then(d => {
-                    allData = d;
+            document.getElementById('lastUpdate').innerText = "กำลังอัปเดต...";
+            
+            db.collection(`${basePath}/officials`).get()
+                .then(snap => {
+                    allData = snap.docs.map(doc => {
+                        let data = doc.data();
+                        return {
+                            idCard: data.idCard,
+                            idCardHash: btoa(data.idCard),
+                            fullName: data.fullName,
+                            position: data.position,
+                            village: data.village,
+                            rawVillage: data.rawVillage,
+                            subdistrict: data.subdistrict,
+                            totalScore: data.totalScore || 0
+                        };
+                    }).sort((a, b) => b.totalScore - a.totalScore);
                     
                     const sel = document.getElementById('filterSub');
                     const curVal = sel.value;
                     
-                    const subs = [...new Set(d.map(i=>i.subdistrict).filter(Boolean))].sort();
+                    const subs = [...new Set(allData.map(i=>i.subdistrict).filter(Boolean))].sort();
                     sel.innerHTML = '<option value="">ทุกตำบล</option>' + subs.map(x=>`<option value="${x}">${x}</option>`).join('');
                     sel.value = curVal;
                     
@@ -203,13 +208,13 @@
             if(!s) { vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>'; } 
             else {
                 const curV = vSel.value;
-                const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.village).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
+                const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.rawVillage).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
                 vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>' + vs.map(v=>`<option value="${v}">${v}</option>`).join('');
                 vSel.value = curV;
             }
 
             const v = vSel.value;
-            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.village===v));
+            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.rawVillage===v));
             renderStats(res); renderTable(res);
         }
 
@@ -244,6 +249,34 @@
             });
         }
 
+        // ฟังก์ชันจัดฟอร์แมตวันที่เป็น DD/MM/YYYY (พ.ศ.)
+        function formatThaiDate(dateStr) {
+            if (!dateStr) return "-";
+            let parts = dateStr.split(/[-/]/);
+            if (parts.length === 3) {
+                let y = parts[0].length === 4 ? parseInt(parts[0]) : parseInt(parts[2]);
+                let m = parts[1];
+                let d = parts[0].length === 4 ? parts[2] : parts[0];
+                if (y < 2500) y += 543;
+                return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${y}`;
+            }
+            return dateStr;
+        }
+        
+        // ฟังก์ชันแปลงวันที่สำหรับการเรียงลำดับ (มากไปน้อย)
+        function parseDateForSort(dateStr) {
+             if (!dateStr) return 0;
+             let parts = dateStr.split(/[-/]/);
+             if (parts.length === 3) {
+                 let y = parts[0].length === 4 ? parseInt(parts[0]) : parseInt(parts[2]);
+                 let m = parts[1];
+                 let d = parts[0].length === 4 ? parts[2] : parts[0];
+                 if (y > 2500) y -= 543;
+                 return new Date(`${y}-${m}-${d}`).getTime();
+             }
+             return 0;
+        }
+
         function viewHist(idHash, name, pos) {
             document.getElementById('histTitle').innerText = name;
             document.getElementById('histSub').innerText = pos;
@@ -252,23 +285,65 @@
             
             tb.innerHTML = '<tr><td colspan="4" class="text-center p-10 text-indigo-500"><i class="fa-solid fa-spinner fa-spin text-3xl"></i></td></tr>';
             
-            callServer('getHistoryData', { idCardOrHash: idHash, isHash: true, forDashboard: true })
-                .then(logs => {
+            const targetId = atob(idHash); 
+            
+            db.collection(`${basePath}/score_logs`).where('idCard', '==', targetId).get()
+                .then(snap => {
                     tb.innerHTML = '';
-                    if(!logs.length) { tb.innerHTML='<tr><td colspan="4" class="text-center p-8 text-slate-400 bg-slate-50">ยังไม่มีประวัติการประเมิน</td></tr>'; return; }
+                    if(snap.empty) { tb.innerHTML='<tr><td colspan="4" class="text-center p-8 text-slate-400 bg-slate-50">ยังไม่มีประวัติการประเมิน</td></tr>'; return; }
                     
-                    logs.forEach(l => {
-                        let proof = l.proof ? (l.proof.startsWith('http') ? `<a href="${l.proof}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition whitespace-nowrap flex items-center justify-center gap-1"><i class="fa-solid fa-paperclip"></i> ดูไฟล์</a>` : `<span class="text-[10px] text-red-500 font-bold bg-red-50 px-2 py-1 rounded" title="${l.proof}">อัปโหลดไม่สำเร็จ</span>`) : '-';
+                    let logsArr = [];
+                    snap.docs.forEach(doc => logsArr.push(doc.data()));
+                    
+                    // จัดกลุ่มคะแนนตามวันที่และชื่อกิจกรรม (ก้อนคะแนนใหญ่)
+                    let grouped = {};
+                    let order = [];
+                    
+                    logsArr.forEach(l => {
+                        // ใช้ dateStr แทน timestamp เพื่อป้องกันบั๊กเวลาเอาข้อมูลเข้าจาก Excel
+                        let dateKey = l.dateStr || '';
+                        let sortTime = parseDateForSort(dateKey);
+                        let key = dateKey + '_' + l.activityName;
+                        let rawSc = Number(l.score) || 0;
+                        let actualScore = l.type === 'negative' ? -Math.abs(rawSc) : Math.abs(rawSc);
                         
-                        let scoreHtml = `<span class="${l.type==='positive'?'text-green-600':'text-red-600'}">${l.scoreStr}</span>`;
+                        if (!grouped[key]) {
+                            grouped[key] = {
+                                sortTime: sortTime,
+                                dateStr: dateKey,
+                                activityName: l.activityName, 
+                                rawScore: actualScore, 
+                                proof: l.proofUrl || l.ProofLink || ''
+                            };
+                            order.push(key);
+                        } else {
+                            grouped[key].rawScore += actualScore;
+                        }
+                    });
+
+                    let finalHistory = order.map(k => grouped[k]);
+                    
+                    // เรียงลำดับจากวันที่ล่าสุดอยู่บนสุด
+                    finalHistory.sort((a, b) => b.sortTime - a.sortTime);
+                    
+                    finalHistory.forEach(l => {
+                        let dateDisplay = formatThaiDate(l.dateStr);
+                        let isNegative = l.rawScore < 0;
+                        let scoreDisplay = (isNegative ? '' : '+') + l.rawScore;
+                        let scoreHtml = `<span class="${!isNegative ? 'text-green-600' : 'text-red-600'}">${scoreDisplay}</span>`;
+                        
+                        // สร้างปุ่มหลักฐาน
+                        let proofLink = l.proof ? l.proof : '';
+                        let proofBtn = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition whitespace-nowrap inline-flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-paperclip"></i> ดูไฟล์</a>` : '<span class="text-slate-300">-</span>';
                         
                         tb.innerHTML += `<tr class="hover:bg-slate-50 transition border-b border-slate-50">
-                            <td class="p-4 text-xs text-slate-500 font-mono align-top pt-5">${l.dateStr}</td>
-                            <td class="p-4 text-sm align-top">
+                            <td class="p-3 md:p-4 text-[10px] md:text-sm text-slate-500 font-mono align-top text-center pt-4 md:pt-5">${dateDisplay}</td>
+                            <td class="p-3 md:p-4 text-sm align-top">
                                 <div class="text-slate-800 font-medium leading-relaxed">${l.activityName}</div>
+                                <!-- ไม่แสดง Breakdown ในหน้า Dashboard -->
                             </td>
-                            <td class="p-4 text-right font-bold text-xl align-top pt-5">${scoreHtml}</td>
-                            <td class="p-4 text-center align-top pt-5">${proof}</td>
+                            <td class="p-3 md:p-4 text-center font-bold text-lg md:text-xl align-top pt-4 md:pt-5">${scoreHtml}</td>
+                            <td class="p-4 text-center align-top pt-5">${proofBtn}</td>
                         </tr>`;
                     });
                 })
