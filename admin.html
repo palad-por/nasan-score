@@ -8,6 +8,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
+
     <style>
         body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent;}
         .glass-header { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
@@ -214,12 +221,12 @@
 
     <!-- 2. Edit / Delete / History Modal -->
     <div id="histModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
-        <div class="bg-white w-full h-full md:h-[85vh] md:max-w-4xl md:rounded-2xl flex flex-col shadow-2xl">
-            <div class="p-4 border-b bg-slate-800 text-white md:rounded-t-2xl flex justify-between flex-none"><h3 class="font-bold" id="histTitle">ประวัติคะแนน</h3><button onclick="closeModal('histModal')" class="p-2"><i class="fa-solid fa-times text-xl"></i></button></div>
+        <div class="bg-white w-full h-full md:h-[85vh] md:max-w-5xl md:rounded-2xl flex flex-col shadow-2xl">
+            <div class="p-4 border-b bg-slate-800 text-white md:rounded-t-2xl flex justify-between flex-none"><h3 class="font-bold" id="histTitle">ประวัติคะแนน</h3><button onclick="closeModal('histModal')" class="p-2 hover:bg-slate-700 rounded-full w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-times text-xl"></i></button></div>
             <div class="flex-grow overflow-auto p-4 custom-scroll relative bg-slate-50">
                 <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
                     <table class="w-full text-left min-w-[600px]">
-                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr><th class="p-4 w-24">วันที่</th><th class="p-4">หมวดและรายละเอียดกิจกรรม</th><th class="p-4 text-right w-20">คะแนน</th><th class="p-4 text-center w-28">จัดการ/หลักฐาน</th></tr></thead>
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr><th class="p-4 w-28 text-center">วันที่</th><th class="p-4">รายละเอียดกิจกรรม</th><th class="p-4 text-center w-24">คะแนน</th><th class="p-4 text-center w-32">จัดการ/หลักฐาน</th></tr></thead>
                         <tbody id="histBody" class="divide-y divide-slate-100 text-sm"></tbody>
                     </table>
                 </div>
@@ -348,54 +355,53 @@
 
     <div id="modal-settings" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl"><h3 class="font-bold mb-5 text-xl">เปลี่ยนรหัสผ่านส่วนตัว</h3><input type="password" id="oldPass" class="w-full p-3 border rounded-xl text-sm mb-4 outline-none focus:border-slate-800" placeholder="รหัสเดิม"><input type="password" id="newPass" class="w-full p-3 border rounded-xl text-sm mb-6 outline-none focus:border-slate-800" placeholder="รหัสใหม่"><div class="flex gap-3"><button onclick="closeModal('modal-settings')" class="flex-1 py-3 border rounded-xl text-sm font-bold text-slate-600">ยกเลิก</button><button onclick="changePass()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl text-sm font-bold shadow-lg">บันทึกใหม่</button></div></div></div>
 
-    <!-- Script Logic -->
+    <!-- Script Logic (Firebase Integrated) -->
     <script>
         // =========================================================================
-        // ตั้งค่า API_URL ให้เป็น Web App URL ของ Google Apps Script ที่คุณ Deploy 
+        // ตั้งค่า Firebase Configuration
         // =========================================================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbwTSWRzl4jwz8gBpYIF9EQ2nIolTBummoXhFYB82EMKCS-UES1Xeja96XV9mX7rKR7b5w/exec"; 
+        const firebaseConfig = {
+          apiKey: "AIzaSyBPC8Wcv5InhI9O-2aMfvclF3fBtqSo1xo",
+          authDomain: "dopa-nasan-score.firebaseapp.com",
+          projectId: "dopa-nasan-score",
+          storageBucket: "dopa-nasan-score.firebasestorage.app",
+          messagingSenderId: "678813152611",
+          appId: "1:678813152611:web:959239d16e296a16cc0f56",
+          measurementId: "G-4QN247NQTT"
+        };
 
-        async function callServer(action, data = {}, maxRetries = 3) {
-            if (API_URL === "YOUR_WEB_APP_URL_HERE") {
-                throw new Error("กรุณานำ Web App URL จาก Google Apps Script มาใส่ในตัวแปร API_URL ก่อนใช้งานครับ");
-            }
-            
-            const payload = { action: action, ...data };
-            
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    // หากไม่ใช่รอบแรก ให้แสดงข้อความว่ากำลังพยายามใหม่
-                    if (i > 0) {
-                        const loaderText = document.getElementById('loading-text') || document.getElementById('histLoading');
-                        if (loaderText && loaderText.innerText) {
-                            if(loaderText.id === 'loading-text') loaderText.innerText = `กำลังพยายามเชื่อมต่อใหม่ (${i}/${maxRetries})...`;
-                        }
-                    }
-
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (!response.ok) throw new Error('Network error');
-                    return await response.json(); // ถ้าสำเร็จ คืนค่ากลับทันทีและจบการทำงาน
-                    
-                } catch (error) {
-                    console.warn(`การเชื่อมต่อขัดข้อง ล้มเหลวครั้งที่ ${i + 1} กำลังพยายามใหม่...`, error);
-                    
-                    // ถ้าลองจนครบโควต้า (3 ครั้ง) แล้วยังพังอยู่ ให้โยน Error ออกไปแสดงผล
-                    if (i === maxRetries - 1) {
-                        throw new Error("เซิร์ฟเวอร์ตอบสนองช้ากว่าปกติ (Network Error) โปรดตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง");
-                    }
-                    
-                    // หน่วงเวลาก่อนลองเชื่อมต่อใหม่ (รอบสองรอ 1 วินาที, รอบสามรอ 2 วินาที)
-                    await new Promise(res => setTimeout(res, 1000 * (i + 1)));
-                }
-            }
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+        
+        const appId = 'dopa-nasan-score';
+        const basePath = `artifacts/${appId}/public/data`;
 
-        let curUser=null, allData=[], criteria=[], actRows=[], globalSelections=new Set();
+        // เกณฑ์การให้คะแนนแบบเดียวกับต้นฉบับ
+        const CRITERIA_LIST = [
+          { id: '1.1.1', name: '1.1.1 งานตาม พ.ร.บ.ฯ (20)', max: 20 },
+          { id: '1.1.2', name: '1.1.2 กฎหมายอื่น (5)', max: 5 },
+          { id: '1.2', name: '1.2 ภารกิจยุทธศาสตร์ (15)', max: 15 },
+          { id: '1.3', name: '1.3 ภารกิจพื้นที่ (15)', max: 15 },
+          { id: '1.4', name: '1.4 รางวัล/เสี่ยงภัย (5)', max: 5 },
+          { id: '2.1', name: '2.1 การวางแผน (5)', max: 5 },
+          { id: '2.2', name: '2.2 ความเป็นผู้นำ (5)', max: 5 },
+          { id: '2.3', name: '2.3 ความรับผิดชอบ (5)', max: 5 },
+          { id: '2.4', name: '2.4 ความสามารถ (5)', max: 5 },
+          { id: '2.5', name: '2.5 ความอุตสาหะ (5)', max: 5 },
+          { id: '2.6', name: '2.6 การรักษาวินัย (5)', max: 5 },
+          { id: '2.7', name: '2.7 จรรยาบรรณ (10)', max: 10 }
+        ];
+        const CRITERIA = {}; CRITERIA_LIST.forEach(c => CRITERIA[c.id] = c);
+
+        let curUser=null, allData=[], criteria=CRITERIA_LIST, actRows=[], globalSelections=new Set();
+
+        window.onload = function() {
+            auth.signInAnonymously().catch(console.error);
+        };
 
         function setLoad(b, t="กำลังประมวลผล...") { 
             document.getElementById('loading-text').innerText = t; 
@@ -404,41 +410,77 @@
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        // --- AUTH ---
-        function handleLogin(e) {
+        // --- AUTH (Firebase) ---
+        async function handleLogin(e) {
             e.preventDefault();
-            const u=document.getElementById('user').value, p=document.getElementById('pass').value;
+            const u = document.getElementById('user').value.toLowerCase().trim();
+            const p = document.getElementById('pass').value;
             setLoad(true, "ตรวจสอบสิทธิ์ผู้ใช้งาน...");
-            callServer('loginUser', { user: u, pass: p })
-                .then(r => {
-                    if(r.success) {
-                        curUser=r;
-                        document.getElementById('loginScreen').style.display='none';
-                        document.getElementById('app').style.display='flex';
-                        document.getElementById('userDisplay').innerText = r.name;
-                        
-                        if(r.role==='user') {
-                            document.querySelectorAll('.user-only').forEach(el=>el.style.display='block');
-                            document.getElementById('sidebar').style.display='none'; 
-                            document.getElementById('adminTableContainer').style.display='none'; 
-                            loadUserData();
-                        } else {
-                            document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
-                            document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display='block');
-                            if(r.role==='district') {
-                                document.querySelectorAll('.district-only').forEach(el=>el.style.display='block');
-                            }
-                            initAdmin();
-                        }
-                    } else {
-                        setLoad(false); Swal.fire('Error', r.message, 'error');
+            
+            try {
+                // ตรวจสอบแอดมินใน config
+                const usersSnap = await db.collection(`${basePath}/users_config`).get();
+                let foundAdmin = null;
+                usersSnap.forEach(doc => {
+                    let d = doc.data();
+                    let storedUser = String(d.username || d.Username || '').toLowerCase();
+                    let storedPass = String(d.password || d.Password || '');
+                    
+                    if(storedUser === u && storedPass === p) {
+                        foundAdmin = { 
+                            username: storedUser, 
+                            role: String(d.role || d.Role || 'tambon').toLowerCase(), 
+                            filter: d.filter || d.Filter, 
+                            name: d.name || d.DisplayName || d.displayName, 
+                            docId: doc.id 
+                        };
                     }
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                });
+
+                if(foundAdmin) {
+                    curUser = foundAdmin;
+                } else {
+                    // ตรวจสอบว่าเป็นผู้ใหญ่บ้านหรือไม่
+                    if (/^\d{13}$/.test(u) && p === '1234') {
+                        const offSnap = await db.collection(`${basePath}/officials`).where('idCard', '==', u).get();
+                        if(!offSnap.empty) {
+                            let d = offSnap.docs[0].data();
+                            curUser = { username: d.idCard, role: 'user', filter: d.subdistrict, name: d.fullName };
+                        }
+                    }
+                }
+
+                if(curUser) {
+                    document.getElementById('loginScreen').style.display='none';
+                    document.getElementById('app').style.display='flex';
+                    document.getElementById('userDisplay').innerText = curUser.name;
+                    
+                    if(curUser.role === 'user') {
+                        document.querySelectorAll('.user-only').forEach(el=>el.style.display='block');
+                        document.getElementById('sidebar').style.display='none'; 
+                        document.getElementById('adminTableContainer').style.display='none'; 
+                        loadUserData();
+                    } else {
+                        document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
+                        document.querySelectorAll('.admin-only-block').forEach(el=>el.style.display='block');
+                        if(curUser.role === 'district') {
+                            document.querySelectorAll('.district-only').forEach(el=>el.style.display='block');
+                        }
+                        initAdmin();
+                    }
+                } else {
+                    Swal.fire('Error', 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
+            setLoad(false);
         }
 
         function logout() {
             setLoad(true, "กำลังออกจากระบบ...");
+            curUser = null;
             window.location.href = "index.html"; 
         }
 
@@ -446,49 +488,47 @@
              window.location.href = "index.html"; 
         }
 
-        // --- INIT DATA (Admin & User) ---
+        // --- INIT DATA (Firebase) ---
+        async function getOfficialsFromDB() {
+            const snap = await db.collection(`${basePath}/officials`).get();
+            let data = snap.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+            return data.sort((a,b) => (b.totalScore||0) - (a.totalScore||0));
+        }
+
         function initAdmin() {
-            setLoad(true, "กำลังโหลดเกณฑ์ประเมิน...");
-            callServer('getInitData')
-                .then(r => {
-                    criteria = r.criteria;
-                    let opts = '<option value="">- เลือกหมวด -</option>';
-                    criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
-                    document.getElementById('reqCat').innerHTML = opts;
-                    
-                    setLoad(true, "ดึงข้อมูลบุคลากร...");
-                    return callServer('getOfficialsData');
-                })
+            setLoad(true, "ดึงข้อมูลบุคลากร...");
+            
+            let opts = '<option value="">- เลือกหมวด -</option>';
+            criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
+            document.getElementById('reqCat').innerHTML = opts;
+
+            getOfficialsFromDB()
                 .then(d => {
                     allData = d;
-                    if(curUser.role==='tambon') allData = allData.filter(x=>x.subdistrict===curUser.filter);
+                    if(curUser.role === 'tambon') allData = allData.filter(x => x.subdistrict === curUser.filter);
                     initFilters(); filter(); setLoad(false);
                 })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error'); });
         }
 
         function loadUserData() {
             setLoad(true, "กำลังดึงข้อมูลส่วนบุคคล...");
-            callServer('getInitData')
-                .then(r => {
-                    criteria = r.criteria;
-                    let opts = '<option value="">- เลือกหมวดผลงาน -</option>';
-                    criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
-                    document.getElementById('reqCat').innerHTML = opts;
-                    
-                    return callServer('getOfficialsData');
-                })
+            let opts = '<option value="">- เลือกหมวดผลงาน -</option>';
+            criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
+            document.getElementById('reqCat').innerHTML = opts;
+            
+            getOfficialsFromDB()
                 .then(d => {
                     allData = d;
                     const me = d.find(x => x.idCard === curUser.username);
                     if(me) {
                         document.getElementById('uName').innerText = me.fullName;
                         document.getElementById('uPos').innerText = `${me.position} ม.${me.moo} ต.${me.subdistrict}`;
-                        document.getElementById('uScore').innerText = me.totalScore;
+                        document.getElementById('uScore').innerText = me.totalScore || 0;
                     }
                     setLoad(false);
                 })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error'); });
         }
 
         // --- FILTERS (Admin) ---
@@ -531,15 +571,15 @@
                 let adminActionBtns = '';
                 if (curUser.role === 'district') {
                     adminActionBtns = `
-                        <button onclick="openEditOff('${i.idCard}')" class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs hover:bg-amber-100 ml-1 border border-amber-200 shadow-sm active:scale-95 transition mb-1 md:mb-0 w-full md:w-auto" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteOff('${i.idCard}', '${i.fullName}')" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs hover:bg-red-100 ml-1 border border-red-200 shadow-sm active:scale-95 transition mb-1 md:mb-0 w-full md:w-auto" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="openEditOff('${i.idCard}')" class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs hover:bg-amber-100 ml-1 border border-amber-200 shadow-sm active:scale-95 transition mb-1 md:mb-0 w-full md:w-auto" title="แก้ไขรายชื่อ"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteOff('${i.idCard}', '${i.fullName}')" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs hover:bg-red-100 ml-1 border border-red-200 shadow-sm active:scale-95 transition mb-1 md:mb-0 w-full md:w-auto" title="ลบรายชื่อ"><i class="fa-solid fa-trash"></i></button>
                     `;
                 }
 
                 tb.innerHTML += `<tr class="hover:bg-slate-50 border-b">
                     <td class="p-3"><div class="font-bold">${i.fullName}</div><div class="text-[10px] text-slate-500 font-mono">${i.position} | ID:${i.idCard}</div></td>
                     <td class="p-3 text-sm">${i.village} <span class="text-[10px] text-slate-400 block mt-0.5">ต.${i.subdistrict}</span></td>
-                    <td class="p-3 text-center font-bold text-lg ${c}">${i.totalScore}</td>
+                    <td class="p-3 text-center font-bold text-lg ${c}">${i.totalScore || 0}</td>
                     <td class="p-3 text-center min-w-[150px]">
                         <button onclick="quickScore('${i.idCard}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs hover:bg-indigo-100 font-bold border border-indigo-100 shadow-sm active:scale-95 transition w-full md:w-auto mb-1">ให้คะแนน</button>
                         <button onclick="manageHistory('${i.idCard}', '${i.fullName}')" class="bg-white px-3 py-1.5 rounded-lg text-xs hover:bg-slate-50 ml-1 border border-slate-200 shadow-sm active:scale-95 transition text-slate-600 w-full md:w-auto mb-1">ประวัติ</button>
@@ -651,7 +691,7 @@
             }
         }
 
-        // --- SCORING ADMIN ---
+        // --- SCORING ADMIN (Firebase) ---
         function openScoreModal() {
             openModal('scoreModal');
             globalSelections.clear();
@@ -679,7 +719,7 @@
                         <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">วันที่</label><input type="date" class="w-full p-3 text-sm border rounded-xl outline-none focus:ring-1" value="${r.date}" onchange="updAct(${r.id},'date',this.value)"></div>
                         <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">รูปแบบ (+/-)</label><select class="w-full p-3 text-sm border rounded-xl font-bold outline-none" onchange="updAct(${r.id},'type',this.value)"><option value="positive" class="text-green-600" ${r.type==='positive'?'selected':''}>+ บวก</option><option value="negative" class="text-red-600" ${r.type==='negative'?'selected':''}>- หัก</option></select></div>
                         <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">คะแนน</label><input type="number" class="w-full p-3 text-sm border rounded-xl text-center text-indigo-600 font-bold outline-none focus:ring-1" value="${r.score}" onchange="updAct(${r.id},'score',this.value)" min="0.5" step="0.5"></div>
-                        <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">หลักฐาน (Drive)</label><input type="file" class="w-full p-2.5 bg-white border rounded-xl text-[10px] mt-0.5" onchange="updAct(${r.id},'file',this.files[0])"></div>
+                        <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">หลักฐาน (รูป/PDF)</label><input type="file" class="w-full p-2.5 bg-white border rounded-xl text-[10px] mt-0.5" onchange="updAct(${r.id},'file',this.files[0])"></div>
                     </div>
                 </div>`;
             });
@@ -687,112 +727,264 @@
         function removeActivityRow(id) { actRows = actRows.filter(r => r.id !== id); renderActs(); }
         function updAct(id,f,v) { const r=actRows.find(x=>x.id===id); if(r) r[f]=v; }
 
-        function getB64(file) {
-            return new Promise((res) => {
-                if(!file) return res(null);
-                const reader = new FileReader(); 
-                reader.readAsDataURL(file);
-                reader.onload = () => res({fileName:file.name, fileMime:file.type, fileBase64:reader.result.split(',')[1]});
-                reader.onerror = () => res(null);
-            });
-        }
-
         async function submitBatch() {
             const mode = document.getElementById('targetMode').value;
             const sels = Array.from(globalSelections);
             if(mode !== 'all' && !sels.length) return Swal.fire('เตือน','กรุณาติ๊กเลือกเป้าหมายก่อนอย่างน้อย 1 คน','warning');
-            
-            let baseArea = "";
-            if(mode === 'tambon_except') baseArea = document.getElementById('baseSub').value;
-            if(mode === 'village_except') baseArea = document.getElementById('baseSub').value + "|" + document.getElementById('baseVil').value;
+
+            let targets = [];
+            if (mode === 'multi_individual') targets = allData.filter(o => sels.includes(o.idCard));
+            else if (mode === 'multi_village') targets = allData.filter(o => sels.includes(o.subdistrict + '|' + o.rawVillage));
+            else if (mode === 'multi_tambon') targets = allData.filter(o => sels.includes(o.subdistrict));
+            else if (mode === 'all') targets = allData;
+            else if (mode === 'all_except') targets = allData.filter(o => !sels.includes(o.idCard));
+            else if (mode === 'tambon_except') targets = allData.filter(o => o.subdistrict === document.getElementById('baseSub').value && !sels.includes(o.idCard));
+            else if (mode === 'village_except') targets = allData.filter(o => o.subdistrict === document.getElementById('baseSub').value && o.rawVillage === document.getElementById('baseVil').value && !sels.includes(o.idCard));
+
+            if(!targets.length) return Swal.fire('เตือน','ไม่พบเป้าหมาย','warning');
 
             setLoad(true, "กำลังบันทึกคะแนน... (และอัปโหลดไฟล์)");
-            let acts = [];
-            for(let r of actRows) {
-                if(!r.cat || !r.name || !r.score) { setLoad(false); return Swal.fire('เตือน','กรอกข้อมูลกิจกรรมให้ครบทุกช่อง','warning'); }
-                let fData = await getB64(r.file);
-                acts.push({categoryId:r.cat, activityName:r.name, date:r.date, score:r.score, type:r.type, ...fData});
-            }
+            
+            try {
+                for (let act of actRows) {
+                    if(!act.cat || !act.name || !act.score) throw new Error('กรอกข้อมูลกิจกรรมให้ครบทุกช่อง');
+                    
+                    let proofUrl = '';
+                    if (act.file) {
+                        const ext = act.file.name.split('.').pop();
+                        const ref = storage.ref(`evidence/admin/${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`);
+                        await ref.put(act.file);
+                        proofUrl = await ref.getDownloadURL();
+                    }
 
-            callServer('submitBatchScore', {
-                payload: {user: curUser.username, userName: curUser.name, targetMode: mode, baseArea: baseArea, selections: sels, activities: acts}
-            })
-            .then(res => {
+                    // สร้าง Batch เพื่ออัปเดตหลายรายการพร้อมกัน
+                    const batch = db.batch();
+                    
+                    for (let p of targets) {
+                        let sc = Math.abs(parseFloat(act.score));
+                        let finalScore = act.type === 'negative' ? -sc : sc;
+                        
+                        // 1. เพิ่มลง Log
+                        const logRef = db.collection(`${basePath}/score_logs`).doc();
+                        batch.set(logRef, {
+                            idCard: p.idCard,
+                            fullName: p.fullName,
+                            categoryId: act.cat,
+                            activityName: act.name,
+                            activityDetail: '',
+                            score: sc,
+                            type: act.type,
+                            recordedBy: curUser.name,
+                            proofUrl: proofUrl,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            dateStr: act.date
+                        });
+
+                        // 2. อัปเดตคะแนนรวม (อ่านค่าเดิมและบวกเพิ่ม)
+                        const offRef = db.collection(`${basePath}/officials`).doc(p.docId || p.idCard);
+                        batch.update(offRef, {
+                            totalScore: (p.totalScore || 0) + finalScore
+                        });
+                        // อัปเดตข้อมูลในหน่วยความจำชั่วคราวเผื่อมีกิจกรรมถัดไป
+                        p.totalScore = (p.totalScore || 0) + finalScore; 
+                    }
+                    await batch.commit();
+                }
+
                 setLoad(false);
-                if(res.success) { 
-                    Swal.fire('สำเร็จ',res.message,'success'); 
-                    closeModal('scoreModal');
-                    initAdmin(); 
-                } else Swal.fire('Error',res.message,'error');
-            })
-            .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                Swal.fire('สำเร็จ', `บันทึกคะแนนให้เป้าหมาย ${targets.length} รายการสำเร็จ`, 'success'); 
+                closeModal('scoreModal');
+                initAdmin(); 
+            } catch (err) {
+                setLoad(false); 
+                Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
         }
 
-        // --- EDIT HISTORY & EXPORT ---
+        // --- EDIT HISTORY & EXPORT (Firebase) ---
         function viewUserHistory() {
             manageHistory(curUser.username, curUser.name);
         }
 
-        function manageHistory(id, name) {
-            document.getElementById('histTitle').innerText = `ประวัติ: ${name}`;
-            openModal('histModal'); document.getElementById('histBody').innerHTML='<tr><td colspan="4" class="text-center p-8"><i class="fa-solid fa-spinner fa-spin text-indigo-500 text-2xl"></i></td></tr>';
-            
-            callServer('getHistoryData', { idCardOrHash: id })
-                .then(logs => {
-                    const tb = document.getElementById('histBody'); tb.innerHTML='';
-                    if(!logs.length) { tb.innerHTML='<tr><td colspan="4" class="text-center p-6 text-slate-400">ไม่มีประวัติ</td></tr>'; return; }
-                    
-                    logs.forEach(l => {
-                        let proof = l.proof ? (l.proof.startsWith('http') ? `<a href="${l.proof}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-100 whitespace-nowrap inline-flex items-center"><i class="fa-solid fa-paperclip mr-1"></i> ดูไฟล์</a>` : `<span class="text-[10px] text-red-500 font-bold bg-red-50 px-2 py-1 rounded" title="${l.proof}">อัปโหลดไม่สำเร็จ</span>`) : '-';
-                        let action = proof;
-                        
-                        if(curUser.role==='user' && l.type==='negative') {
-                            if (l.isAppealed) {
-                                action += `<div class="mt-2 text-[10px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg font-bold w-full text-center border border-slate-200">ยื่นอุทธรณ์แล้ว</div>`;
-                            } else {
-                                action += `<button onclick="openAppeal('${l.primaryCatId}', '${l.activityName}', ${l.rawScore}, '${l.logIndex}')" class="mt-2 text-[10px] bg-orange-500 text-white px-3 py-1.5 rounded-lg font-bold w-full shadow-sm hover:bg-orange-600">ยื่นอุทธรณ์</button>`;
-                            }
-                        } else if (curUser.role === 'district') {
-                            action += `<div class="flex gap-2 mt-2 justify-center">
-                                <button onclick="openEditLog('${l.logIndex}', '${id}', '${l.primaryCatId}', '${l.activityName}', '${l.activityDetail}', ${l.rawScore})" class="bg-amber-100 text-amber-600 p-2 rounded-lg hover:bg-amber-200"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                                <button onclick="deleteLog('${l.logIndex}', '${id}')" class="bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                            </div>`;
-                        }
-                        
-                        let scoreHtml = `<span class="${l.type==='positive'?'text-green-600':'text-red-600'}">${l.scoreStr}</span>`;
-
-                        tb.innerHTML += `<tr class="border-b border-slate-50 hover:bg-slate-50 transition">
-                            <td class="p-4 text-xs text-slate-500 font-mono align-top pt-5">${l.dateStr}</td>
-                            <td class="p-4 text-sm align-top">
-                                <div class="text-slate-800 font-bold">${l.activityName}</div>
-                                <div class="mb-1.5">${l.categoryName}</div>
-                                <div class="text-xs text-slate-600 mt-1 whitespace-pre-wrap">${l.activityDetail}</div>
-                                <div class="text-[10px] text-slate-400 mt-2"><i class="fa-solid fa-user-pen"></i> ผู้บันทึก: ${l.by}</div>
-                            </td>
-                            <td class="p-4 text-right font-bold text-xl align-top pt-5">${scoreHtml}</td>
-                            <td class="p-4 text-center align-top pt-5">${action}</td>
-                        </tr>`;
-                    });
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        // ฟังก์ชันจัดฟอร์แมตวันที่เป็น DD/MM/YYYY (พ.ศ.)
+        function formatThaiDate(dateStr) {
+            if (!dateStr) return "-";
+            let parts = dateStr.split(/[-/]/);
+            if (parts.length === 3) {
+                let y = parts[0].length === 4 ? parseInt(parts[0]) : parseInt(parts[2]);
+                let m = parts[1];
+                let d = parts[0].length === 4 ? parts[2] : parts[0];
+                if (y < 2500) y += 543;
+                return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${y}`;
+            }
+            return dateStr;
+        }
+        
+        // ฟังก์ชันแปลงวันที่สำหรับการเรียงลำดับ (มากไปน้อย)
+        function parseDateForSort(dateStr) {
+             if (!dateStr) return 0;
+             let parts = dateStr.split(/[-/]/);
+             if (parts.length === 3) {
+                 let y = parts[0].length === 4 ? parseInt(parts[0]) : parseInt(parts[2]);
+                 let m = parts[1];
+                 let d = parts[0].length === 4 ? parts[2] : parts[0];
+                 if (y > 2500) y -= 543;
+                 return new Date(`${y}-${m}-${d}`).getTime();
+             }
+             return 0;
         }
 
-        function deleteLog(logIndex, idCard) {
-            Swal.fire({title: 'ลบประวัตินี้?', text: 'ก้อนคะแนนที่เลือกทั้งหมดจะถูกลบและคำนวณใหม่', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444'}).then(r => {
+        async function manageHistory(idCard, name) {
+            document.getElementById('histTitle').innerText = `ประวัติ: ${name}`;
+            openModal('histModal'); 
+            const tb = document.getElementById('histBody');
+            tb.innerHTML='<tr><td colspan="4" class="text-center p-8"><i class="fa-solid fa-spinner fa-spin text-indigo-500 text-2xl"></i></td></tr>';
+            
+            try {
+                const reqSnap = await db.collection(`${basePath}/requests`).where('officialId', '==', idCard).where('type', '==', 'APPEAL').get();
+                const appealedLogIds = new Set();
+                reqSnap.forEach(doc => {
+                    let r = doc.data();
+                    if(r.refLogId) appealedLogIds.add(r.refLogId);
+                });
+
+                const logsSnap = await db.collection(`${basePath}/score_logs`).where('idCard', '==', idCard).get();
+                tb.innerHTML = '';
+                
+                if(logsSnap.empty) { tb.innerHTML='<tr><td colspan="4" class="text-center p-6 text-slate-400">ไม่มีประวัติ</td></tr>'; return; }
+                
+                let logsArr = [];
+                logsSnap.docs.forEach(doc => logsArr.push({id: doc.id, ...doc.data()}));
+                
+                // จัดกลุ่มคะแนนเหมือนหน้าแดชบอร์ด (เอา Breakdowns กลับมาให้ในหน้าแอดมิน)
+                let grouped = {};
+                let order = [];
+                
+                logsArr.forEach(l => {
+                    let dateKey = l.dateStr || '';
+                    let sortTime = parseDateForSort(dateKey);
+                    let key = dateKey + '_' + l.activityName;
+                    let rawSc = Number(l.score) || 0;
+                    let actualScore = l.type === 'negative' ? -Math.abs(rawSc) : Math.abs(rawSc);
+                    let catName = CRITERIA[l.categoryId] ? CRITERIA[l.categoryId].name : l.categoryId;
+                    
+                    if (!grouped[key]) {
+                        grouped[key] = {
+                            ids: [l.id],
+                            primaryCatId: l.categoryId,
+                            sortTime: sortTime,
+                            dateStr: dateKey,
+                            activityName: l.activityName, 
+                            activityDetail: l.activityDetail || '',
+                            rawScore: actualScore, 
+                            type: l.type,
+                            recordedBy: l.recordedBy,
+                            proof: l.proofUrl || l.ProofLink || '',
+                            breakdowns: [{ name: catName, score: actualScore }] // เก็บป้ายคะแนนย่อย
+                        };
+                        order.push(key);
+                    } else {
+                        grouped[key].ids.push(l.id);
+                        grouped[key].rawScore += actualScore;
+                        grouped[key].breakdowns.push({ name: catName, score: actualScore });
+                        grouped[key].type = grouped[key].rawScore < 0 ? 'negative' : 'positive';
+                    }
+                });
+
+                let finalHistory = order.map(k => grouped[k]);
+                finalHistory.sort((a, b) => b.sortTime - a.sortTime); // ล่าสุดอยู่บน
+                
+                finalHistory.forEach(l => {
+                    let logId = l.ids[0]; // ใช้ id ตัวแรกเป็นตัวแทน
+                    let dateDisplay = formatThaiDate(l.dateStr);
+                    let isNegative = l.rawScore < 0;
+                    let scoreDisplay = (isNegative ? '' : '+') + l.rawScore;
+                    let scoreHtml = `<span class="${!isNegative ? 'text-green-600' : 'text-red-600'}">${scoreDisplay}</span>`;
+                    
+                    // สร้างป้ายคะแนนย่อย (Breakdowns) ที่ถูกรวมกันไป
+                    let breakdownHtml = l.breakdowns.map(b => 
+                        `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] mr-1 mt-1 border border-indigo-100 inline-block">${b.name} (${b.score > 0 ? '+' : ''}${b.score})</span>`
+                    ).join('');
+                    
+                    let proofLink = l.proof ? l.proof : '';
+                    let proofBtn = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-100 whitespace-nowrap inline-flex items-center w-full justify-center mt-2"><i class="fa-solid fa-paperclip mr-1"></i> ดูไฟล์หลักฐาน</a>` : '<span class="text-slate-300 block text-center w-full mt-2 text-[10px]">-</span>';
+                    let proofBtnDesktop = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-100 whitespace-nowrap inline-flex items-center w-full justify-center mb-2"><i class="fa-solid fa-paperclip mr-1"></i> ดูไฟล์</a>` : '<span class="text-slate-300 block text-center mb-2">-</span>';
+                    
+                    let actionDesktop = proofBtnDesktop;
+                    let actionMobile = proofBtn;
+                    
+                    if(curUser.role==='user' && isNegative) {
+                        if (appealedLogIds.has(logId)) {
+                            let apBtn = `<div class="mt-2 text-[10px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg font-bold w-full text-center border border-slate-200">ยื่นอุทธรณ์แล้ว</div>`;
+                            actionDesktop += apBtn; actionMobile += apBtn;
+                        } else {
+                            let apBtn = `<button onclick="openAppeal('${l.primaryCatId}', '${l.activityName}', ${l.rawScore}, '${l.ids.join(',')}')" class="mt-2 text-[10px] bg-orange-500 text-white px-3 py-1.5 rounded-lg font-bold w-full shadow-sm hover:bg-orange-600">ยื่นอุทธรณ์</button>`;
+                            actionDesktop += apBtn; actionMobile += apBtn;
+                        }
+                    } else if (curUser.role === 'district') {
+                        let idsParam = l.ids.join(',');
+                        // เอากลับมาทั้งปุ่ม "แก้ไข" และ "ลบ"
+                        let admBtns = `<div class="flex gap-2 mt-2 justify-center w-full">
+                            <button onclick="openEditLog('${logId}', '${idCard}', '${l.primaryCatId}', '${l.activityName}', '${l.activityDetail}', ${l.rawScore})" class="bg-amber-100 text-amber-700 p-2 rounded-lg hover:bg-amber-200 flex-1 flex justify-center"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                            <button onclick="deleteLogGroup('${idsParam}', '${idCard}')" class="bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200 flex-1 flex justify-center"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        </div>`;
+                        actionDesktop += admBtns; actionMobile += admBtns;
+                    }
+
+                    tb.innerHTML += `<tr class="border-b border-slate-50 hover:bg-slate-50 transition">
+                        <td class="p-3 md:p-4 text-[10px] md:text-xs text-slate-500 font-mono align-top pt-4 md:pt-5 text-center">${dateDisplay}</td>
+                        <td class="p-3 md:p-4 text-sm align-top">
+                            <div class="text-slate-800 font-bold">${l.activityName}</div>
+                            <div class="mb-1.5">${breakdownHtml}</div>
+                            <div class="text-xs text-slate-600 mt-1 whitespace-pre-wrap">${l.activityDetail}</div>
+                            <div class="text-[10px] text-slate-400 mt-2"><i class="fa-solid fa-user-pen"></i> ผู้บันทึก: ${l.recordedBy || '-'}</div>
+                            <!-- ปุ่ม Action และหลักฐาน บนมือถือจะมาอยู่ใต้ชื่อกิจกรรม -->
+                            <div class="mt-3 block md:hidden w-full border-t border-slate-100 pt-2">${actionMobile}</div>
+                        </td>
+                        <td class="p-3 md:p-4 text-center font-bold text-lg md:text-xl align-top pt-4 md:pt-5">${scoreHtml}</td>
+                        <!-- คอลัมน์จัดการ ซ่อนบนมือถือ -->
+                        <td class="p-4 text-center align-top pt-5 hidden md:table-cell">${actionDesktop}</td>
+                    </tr>`;
+                });
+            } catch (err) {
+                setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
+        }
+
+        async function recalculateScore(idCard) {
+            const logsSnap = await db.collection(`${basePath}/score_logs`).where('idCard', '==', idCard).get();
+            let newTotal = 0;
+            logsSnap.forEach(doc => {
+                let d = doc.data();
+                if (d.type === 'negative') newTotal -= Math.abs(d.score);
+                else newTotal += Math.abs(d.score);
+            });
+            await db.collection(`${basePath}/officials`).doc(idCard).update({ totalScore: newTotal });
+        }
+
+        function deleteLogGroup(idsStr, idCard) {
+            Swal.fire({title: 'ลบประวัตินี้?', text: 'ก้อนคะแนนนี้ทั้งหมดจะถูกลบและคำนวณใหม่', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444'}).then(async r => {
                 if(r.isConfirmed) {
                     setLoad(true);
-                    callServer('deleteScoreLog', { payload: {logIndex: logIndex, idCard: idCard} })
-                        .then(res => {
-                            if(res.success) { initAdmin(); manageHistory(idCard, document.getElementById('histTitle').innerText.replace('ประวัติ: ','')); }
-                            else { setLoad(false); Swal.fire('Error', res.message, 'error'); }
-                        })
-                        .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                    try {
+                        let ids = idsStr.split(',');
+                        const batch = db.batch();
+                        ids.forEach(id => {
+                            batch.delete(db.collection(`${basePath}/score_logs`).doc(id));
+                        });
+                        await batch.commit();
+                        await recalculateScore(idCard);
+                        initAdmin(); 
+                        manageHistory(idCard, document.getElementById('histTitle').innerText.replace('ประวัติ: ',''));
+                    } catch (err) {
+                        setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+                    }
                 }
             });
         }
         
-        function openEditLog(logIndex, idCard, catId, actName, actDetail, score) {
-            document.getElementById('editLogIndex').value = logIndex;
+        function openEditLog(logId, idCard, catId, actName, actDetail, score) {
+            document.getElementById('editLogIndex').value = logId; // ใช้เก็บ Doc ID แทน Index
             document.getElementById('editLogIdCard').value = idCard;
             
             let opts = ''; criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
@@ -805,32 +997,80 @@
             openModal('modal-edit-log');
         }
         
-        function saveEditLog() {
+        async function saveEditLog() {
             setLoad(true); closeModal('modal-edit-log');
-            const p = {
-                logIndex: document.getElementById('editLogIndex').value, idCard: document.getElementById('editLogIdCard').value,
-                newCatId: document.getElementById('editLogCat').value, newActName: document.getElementById('editLogActName').value, newActDetail: document.getElementById('editLogActDetail').value, newScore: document.getElementById('editLogScore').value
-            };
-            callServer('editScoreLog', { payload: p })
-                .then(r => {
-                    if(r.success) { initAdmin(); manageHistory(p.idCard, document.getElementById('histTitle').innerText.replace('ประวัติ: ','')); }
-                    else { setLoad(false); Swal.fire('Error', r.message, 'error'); }
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+            const logId = document.getElementById('editLogIndex').value;
+            const idCard = document.getElementById('editLogIdCard').value;
+            
+            try {
+                await db.collection(`${basePath}/score_logs`).doc(logId).update({
+                    categoryId: document.getElementById('editLogCat').value,
+                    activityName: document.getElementById('editLogActName').value,
+                    activityDetail: document.getElementById('editLogActDetail').value,
+                    score: Math.abs(parseFloat(document.getElementById('editLogScore').value))
+                });
+                
+                await recalculateScore(idCard);
+                initAdmin(); 
+                manageHistory(idCard, document.getElementById('histTitle').innerText.replace('ประวัติ: ',''));
+            } catch (err) {
+                setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
         }
 
-        function exportCSV() {
-            setLoad(true, "กำลังดึงข้อมูลแยกรายหมวดเพื่อสร้าง CSV...");
-            callServer('getAllLogsCSV')
-                .then(r => {
-                    setLoad(false);
-                    if(r.success) {
-                        const blob = new Blob([r.csv], { type: 'text/csv;charset=utf-8;' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement("a"); link.href = url; link.download = "DOPA_Score_ByCriteria.csv"; link.click();
-                    } else Swal.fire('Error', r.message, 'error');
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+        async function exportCSV() {
+            setLoad(true, "กำลังเตรียมข้อมูล CSV...");
+            try {
+                const logsSnap = await db.collection(`${basePath}/score_logs`).get();
+                const logData = logsSnap.docs.map(d => d.data());
+                
+                let csv = "\uFEFFเลขบัตรประชาชน,ชื่อ-สกุล,ตำแหน่ง,หมู่บ้าน,ตำบล,";
+                CRITERIA_LIST.forEach(c => { csv += `"${c.name}",`; });
+                csv += "รวมคะแนนด้านผลงาน,รวมคะแนนด้านพฤติกรรม,รายละเอียดกิจกรรมทั้งหมด,คะแนนรวม\n";
+                
+                allData.forEach(p => {
+                    let userScores = {};
+                    let acts = [];
+                    
+                    logData.filter(l => l.idCard === p.idCard).forEach(l => {
+                        let cat = String(l.categoryId);
+                        let actName = String(l.activityName);
+                        let score = Number(l.score) || 0;
+                        if(l.type === 'negative') score = -Math.abs(score);
+                        else score = Math.abs(score);
+                        
+                        if(!userScores[cat]) userScores[cat] = 0;
+                        userScores[cat] += score;
+                        
+                        let catObj = CRITERIA[cat];
+                        let catName = catObj ? catObj.name : cat;
+                        acts.push(`[${catName}] ${actName} (${score>0?'+':''}${score})`);
+                    });
+                    
+                    csv += `="${p.idCard}","${p.fullName}","${p.position}","${p.village}","${p.subdistrict}",`;
+                    
+                    let workScore = 0;
+                    let behaviorScore = 0;
+
+                    CRITERIA_LIST.forEach(c => {
+                        let s = userScores[c.id] || 0;
+                        csv += `"${s}",`;
+                        if (['1.1.1', '1.1.2', '1.2', '1.3', '1.4'].includes(c.id)) { workScore += s; } 
+                        else if (['2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7'].includes(c.id)) { behaviorScore += s; }
+                    });
+                    
+                    csv += `"${workScore}","${behaviorScore}",`;
+                    let actStr = acts.join("\n").replace(/"/g, '""');
+                    csv += `"${actStr}","${p.totalScore || 0}"\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a"); link.href = url; link.download = "DOPA_Score_ByCriteria.csv"; link.click();
+            } catch (err) {
+                Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
+            setLoad(false);
         }
 
         // --- REQUESTS & APPEALS (USER & ADMIN) ---
@@ -840,9 +1080,9 @@
             return opts;
         }
 
-        function openAppeal(catId, actName, score, logId) {
+        function openAppeal(catId, actName, score, logIdsStr) {
             closeModal('histModal');
-            document.getElementById('appealLogId').value = logId;
+            document.getElementById('appealLogId').value = logIdsStr;
             document.getElementById('appealCatId').value = catId;
             document.getElementById('appealTitle').value = actName;
             document.getElementById('appealScore').value = Math.abs(score);
@@ -851,258 +1091,367 @@
         }
 
         async function submitReq(type) {
-            let p = { reqType:type, idCard:curUser.username, fullName:curUser.name };
+            let p = { type: type, officialId: curUser.username, fullName: curUser.name };
             let file;
             if (type === 'REQUEST') {
                 p.categoryId = document.getElementById('reqCat').value;
                 p.activityName = document.getElementById('reqTitle').value;
-                p.actDetail = document.getElementById('reqDesc').value;
-                p.actDate = document.getElementById('reqDate').value;
-                p.score = document.getElementById('reqScore').value;
+                p.detail = document.getElementById('reqDesc').value;
+                p.reqScore = document.getElementById('reqScore').value;
                 file = document.getElementById('reqFile').files[0];
             } else {
                 p.categoryId = document.getElementById('appealCatId').value;
                 p.activityName = document.getElementById('appealTitle').value;
-                p.actDetail = document.getElementById('appealDesc').value;
-                p.actDate = document.getElementById('appealDate').value;
-                p.score = document.getElementById('appealScore').value;
+                p.detail = document.getElementById('appealDesc').value;
+                p.reqScore = document.getElementById('appealScore').value;
                 p.refLogId = document.getElementById('appealLogId').value;
                 file = document.getElementById('appealFile').files[0];
             }
 
-            if(!p.categoryId || !p.activityName || !p.actDate || !file) return Swal.fire('เตือน','กรุณาระบุข้อมูลให้ครบ และแนบไฟล์หลักฐานประกอบ','warning');
+            if(!p.categoryId || !p.activityName || !file) return Swal.fire('เตือน','กรุณาระบุข้อมูลให้ครบ และแนบไฟล์หลักฐานประกอบ','warning');
             
             setLoad(true, "กำลังส่งข้อมูลเข้าสู่ระบบ...");
-            const fData = await getB64(file);
-            Object.assign(p, fData);
-            
-            callServer('submitRequest', { payload: p })
-                .then(r => {
-                    setLoad(false); closeModal(type==='REQUEST'?'modal-req':'modal-appeal');
-                    Swal.fire(r.success?'สำเร็จ':'Error', r.message, r.success?'success':'error');
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+            try {
+                let fileUrl = '';
+                if (file) {
+                    const ext = file.name.split('.').pop();
+                    const ref = storage.ref(`evidence/${curUser.username}/${Date.now()}_document.${ext}`);
+                    await ref.put(file);
+                    fileUrl = await ref.getDownloadURL();
+                }
+
+                await db.collection(`${basePath}/requests`).add({
+                    ...p,
+                    fileUrl: fileUrl,
+                    statTam: 'Pending',
+                    statDist: 'Pending',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    dateStr: new Date().toLocaleDateString('th-TH')
+                });
+
+                closeModal(type==='REQUEST'?'modal-req':'modal-appeal');
+                Swal.fire('สำเร็จ', 'ส่งข้อมูลเรียบร้อย รอปลัดตำบลประจำพื้นที่พิจารณา', 'success');
+            } catch (err) {
+                Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
+            setLoad(false);
         }
 
-        function loadApprovalCenter() {
+        async function loadApprovalCenter() {
             openModal('modal-approve');
             const con = document.getElementById('approveContainer');
             con.innerHTML = '<div class="text-center p-10"><i class="fa-solid fa-spinner fa-spin text-4xl text-amber-500"></i></div>';
             
-            callServer('getPendingRequests', { role: curUser.role, filter: curUser.filter, username: curUser.username })
-                .then(reqs => {
-                    con.innerHTML = '';
-                    if(!reqs.length) { con.innerHTML = '<div class="text-center p-10 text-slate-500 bg-white rounded-2xl shadow-sm">ไม่มีคำร้องรอดำเนินการ</div>'; return; }
+            try {
+                const reqsSnap = await db.collection(`${basePath}/requests`).orderBy('timestamp', 'desc').get();
+                let reqs = reqsSnap.docs.map(d => ({ docId: d.id, ...d.data() }));
+
+                // ตัวกรองตาม Role (อำเภอ/ตำบล)
+                if (curUser.role === 'tambon') {
+                    // ตำบลเห็นเฉพาะคนในตำบลตัวเอง และเป็น Pending ของตำบล
+                    const myTambonIds = allData.filter(o => o.subdistrict === curUser.filter).map(o => o.idCard);
+                    reqs = reqs.filter(r => myTambonIds.includes(r.officialId) && r.statTam === 'Pending');
+                } else if (curUser.role === 'district') {
+                    // อำเภอเห็นเฉพาะที่ส่งมาจากตำบล (Forwarded) และรออำเภอ (Pending)
+                    reqs = reqs.filter(r => r.statTam === 'Forwarded' && r.statDist === 'Pending');
+                }
+
+                con.innerHTML = '';
+                if(!reqs.length) { con.innerHTML = '<div class="text-center p-10 text-slate-500 bg-white rounded-2xl shadow-sm">ไม่มีคำร้องรอดำเนินการ</div>'; return; }
+                
+                reqs.forEach(r => {
+                    const off = allData.find(x => x.idCard === r.officialId) || {};
                     
-                    reqs.forEach(r => {
-                        let proof = r.proof ? (r.proof.startsWith('http') ? `<a href="${r.proof}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs ml-2 hover:bg-blue-100 font-bold inline-flex items-center"><i class="fa-solid fa-paperclip mr-1"></i> ดูหลักฐานที่แนบ</a>` : `<span class="text-xs text-red-500 ml-2">อัปโหลดไม่สำเร็จ</span>`) : '';
-                        let badge = r.type === 'APPEAL' ? `<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-gavel"></i> อุทธรณ์</span>` : `<span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-hand-holding-hand"></i> ขอคะแนน</span>`;
-                        
-                        let actionHtml = '';
-                        if (r.type === 'APPEAL') {
-                            if (curUser.role === 'tambon') {
-                                actionHtml = `
-                                    <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">ให้คะแนนใหม่ (อุทธรณ์ - สูงสุด 2 คะแนน)</label>
-                                        <input type="number" id="apvScoreTam_${r.rowIdx}" class="w-full p-2 border rounded-lg text-center font-bold text-green-600 text-sm focus:ring-1 focus:ring-green-400 outline-none" value="${Math.abs(r.reqScore)}" step="0.5" max="2">
-                                    </div>
-                                    <div class="grid grid-cols-1 gap-2">
-                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'RestoreScore', ${r.reqScore}, '${r.idCard}', null, null, null, 'APPEAL', '${r.refLogId}')" class="bg-green-100 text-green-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-green-200">อุทธรณ์ฟังขึ้น: คืนคะแนนเดิม</button>
-                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'EditScore', null, '${r.idCard}', '${r.catId}', '${r.activityName}', '${r.activityDetail}', 'APPEAL', '${r.refLogId}')" class="bg-blue-100 text-blue-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-200">อุทธรณ์ฟังขึ้น: แก้ไขคะแนนตามที่ระบุ</button>
-                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'Forward', 0, null, null, null, null, 'APPEAL')" class="bg-indigo-100 text-indigo-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-200 mt-2">ส่งอุทธรณ์ให้อำเภอพิจารณา</button>
-                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'ConfirmDeduction', 0, null, null, null, null, 'APPEAL')" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-200">อุทธรณ์ฟังไม่ขึ้น: ยืนยันการหัก</button>
-                                    </div>
-                                `;
-                            } else if (curUser.role === 'district') {
-                                actionHtml = `
-                                    <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขหมวดคะแนน</label>
-                                        <select id="editCat_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none">${getCriteriaOptions(r.catId)}</select>
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขชื่อกิจกรรม/ผลงาน</label>
-                                        <input type="text" id="editActName_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" value="${r.activityName}">
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขรายละเอียด</label>
-                                        <textarea id="editActDetail_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" rows="2">${r.activityDetail}</textarea>
-                                        <div class="flex items-center justify-between border-t pt-3">
-                                            <label class="text-xs font-bold text-slate-700">ระบุคะแนนใหม่:</label>
-                                            <input type="number" id="apvScore_${r.rowIdx}" class="w-24 p-2 border rounded-lg text-center font-bold text-indigo-600 text-sm outline-none" value="${Math.abs(r.reqScore)}" step="0.5">
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-1 gap-2">
-                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'RestoreScore', ${r.reqScore}, '${r.idCard}', null, null, null, 'APPEAL', '${r.refLogId}')" class="bg-green-100 text-green-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-green-200">อุทธรณ์ฟังขึ้น: คืนคะแนนเดิม</button>
-                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'EditScore', null, '${r.idCard}', '${r.catId}', '${r.activityName}', '${r.activityDetail}', 'APPEAL', '${r.refLogId}')" class="bg-blue-100 text-blue-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-200">อุทธรณ์ฟังขึ้น: แก้ไขคะแนนตามที่ระบุ</button>
-                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'ConfirmDeduction', 0, null, null, null, null, 'APPEAL')" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-200 mt-2">อุทธรณ์ฟังไม่ขึ้น: ยืนยันการหัก</button>
-                                    </div>
-                                `;
-                            }
+                    // ปรับปรุงการตรวจสอบและการดึงค่าวันที่
+                    let dateStr = "-";
+                    if (r.timestamp) {
+                         if (typeof r.timestamp.toDate === 'function') {
+                            dateStr = new Date(r.timestamp.toDate()).toLocaleDateString('th-TH');
+                        } else if (r.timestamp.seconds) {
+                            dateStr = new Date(r.timestamp.seconds * 1000).toLocaleDateString('th-TH');
                         } else {
-                            if (curUser.role === 'tambon') {
-                                actionHtml = `
-                                    <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">ให้คะแนนอนุมัติ (ตำบลให้ได้สูงสุด 2 คะแนน)</label>
-                                        <input type="number" id="apvScoreTam_${r.rowIdx}" class="w-full p-2 border rounded-lg text-center font-bold text-green-600 text-sm focus:ring-1 focus:ring-green-400 outline-none" value="${Math.min(r.reqScore, 2)}" min="0.5" step="0.5" max="2">
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'Rejected', 0)" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-red-200">ไม่อนุมัติ</button>
-                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'Approved', null, '${r.idCard}', '${r.catId}', '${r.activityName}', '${r.activityDetail}', '${r.type}')" class="bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-green-700">อนุมัติให้คะแนน</button>
-                                        <button onclick="approveAction(${r.rowIdx}, 'tambon', 'Forward', 0)" class="col-span-2 bg-blue-100 text-blue-700 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-blue-200 mt-1">ส่งให้อำเภอ (กรณีขอเกิน 2 คะแนน)</button>
-                                    </div>
-                                `;
-                            } else if (curUser.role === 'district') {
-                                actionHtml = `
-                                    <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขหมวดคะแนน</label>
-                                        <select id="editCat_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none">${getCriteriaOptions(r.catId)}</select>
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขชื่อกิจกรรม/ผลงาน</label>
-                                        <input type="text" id="editActName_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" value="${r.activityName}">
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขรายละเอียดเพิ่มเติม</label>
-                                        <textarea id="editActDetail_${r.rowIdx}" class="w-full p-2 border rounded-lg text-xs bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none" rows="2">${r.activityDetail}</textarea>
-                                        <div class="mt-4 flex items-center justify-between border-t pt-3">
-                                            <label class="text-xs font-bold text-slate-700">ปรับคะแนนอนุมัติ:</label>
-                                            <input type="number" id="apvScore_${r.rowIdx}" class="w-24 p-2 border rounded-lg text-center font-bold text-indigo-600 text-sm focus:ring-1 focus:ring-amber-400 outline-none" value="${Math.abs(r.reqScore)}" step="0.5">
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'Rejected', 0)" class="bg-red-600 text-white py-3 rounded-xl text-sm font-bold shadow-sm hover:bg-red-700">ปฏิเสธคำร้อง</button>
-                                        <button onclick="approveAction(${r.rowIdx}, 'district', 'Approved', null, '${r.idCard}', '${r.catId}', '${r.activityName}', '${r.activityDetail}', '${r.type}')" class="bg-green-600 text-white py-3 rounded-xl text-sm font-bold shadow-sm hover:bg-green-700">อนุมัติ (บวกคะแนน)</button>
-                                    </div>
-                                `;
-                            }
+                             let d = new Date(r.timestamp);
+                            if (!isNaN(d.getTime())) dateStr = d.toLocaleDateString('th-TH');
+                            else dateStr = r.dateStr || "-";
                         }
+                    } else if (r.dateStr) {
+                         dateStr = r.dateStr;
+                    }
 
-                        let tamStatHTML = '';
-                        if (r.statTam === 'Approved') {
-                            tamStatHTML = '<span class="text-green-600"><i class="fa-solid fa-check-circle"></i> ปลัดตำบลเห็นชอบแล้ว</span>';
-                        } else if (r.statTam === 'Forwarded') {
-                            tamStatHTML = '<span class="text-blue-600"><i class="fa-solid fa-share"></i> ปลัดตำบลส่งต่อให้อำเภอ</span>';
-                        } else if (r.statTam === 'Rejected') {
-                            tamStatHTML = '<span class="text-red-600"><i class="fa-solid fa-times-circle"></i> ปลัดตำบลไม่อนุมัติ</span>';
-                        } else {
-                            tamStatHTML = '<span class="text-amber-500"><i class="fa-solid fa-clock"></i> รอปลัดตำบลพิจารณา</span>';
-                        }
-
-                        con.innerHTML += `
-                            <div class="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-6 hover:shadow-md transition">
-                                <div class="flex-grow">
-                                    <div class="flex items-center gap-3 mb-3">${badge} <span class="text-xs text-slate-400 font-mono">${r.date}</span></div>
-                                    <h4 class="font-bold text-slate-800 text-lg">${r.fullName} <span class="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md ml-1">ต.${r.subdistrict}</span></h4>
-                                    <div class="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                        <p class="text-xs text-indigo-500 font-bold uppercase mb-1">หมวดหมู่</p>
-                                        <p class="text-sm text-slate-800 font-bold mb-3">${r.category}</p>
-                                        <p class="text-xs text-indigo-500 font-bold uppercase mb-1">เรื่อง / ผลงาน</p>
-                                        <p class="text-sm text-slate-700 mb-3">${r.activityName}</p>
-                                        <p class="text-xs text-indigo-500 font-bold uppercase mb-1">รายละเอียดชี้แจง</p>
-                                        <p class="text-sm text-slate-600 italic whitespace-pre-wrap">${r.activityDetail}</p>
-                                    </div>
-                                    <div class="mt-4 flex items-center justify-between border-t pt-3">
-                                        <div class="flex items-center gap-2 text-sm text-slate-700"><b>คะแนนที่เกี่ยวข้อง:</b> <span class="bg-indigo-100 text-indigo-700 font-bold text-xl px-3 py-1 rounded-lg">${Math.abs(r.reqScore)}</span> ${proof}</div>
-                                    </div>
-                                    <div class="mt-3 text-xs bg-slate-50 p-2.5 rounded-xl inline-block border border-slate-200 font-bold">
-                                        สถานะ: ${tamStatHTML}
+                    let proof = r.fileUrl ? `<a href="${r.fileUrl}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs ml-2 hover:bg-blue-100 font-bold inline-flex items-center"><i class="fa-solid fa-paperclip mr-1"></i> ดูหลักฐานที่แนบ</a>` : `<span class="text-xs text-red-500 ml-2">ไม่มีไฟล์แนบ</span>`;
+                    let badge = r.type === 'APPEAL' ? `<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-gavel"></i> อุทธรณ์</span>` : `<span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-hand-holding-hand"></i> ขอคะแนน</span>`;
+                    
+                    let actionHtml = '';
+                    if (r.type === 'APPEAL') {
+                        if (curUser.role === 'tambon') {
+                            actionHtml = `
+                                <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">ให้คะแนนใหม่ (อุทธรณ์ - สูงสุด 2 คะแนน)</label>
+                                    <input type="number" id="apvScoreTam_${r.docId}" class="w-full p-2 border rounded-lg text-center font-bold text-green-600 text-sm focus:ring-1 focus:ring-green-400 outline-none" value="${Math.abs(r.reqScore)}" step="0.5" max="2">
+                                </div>
+                                <div class="grid grid-cols-1 gap-2">
+                                    <button onclick="approveAction('${r.docId}', 'tambon', 'RestoreScore', ${r.reqScore}, '${r.officialId}', null, null, null, 'APPEAL', '${r.refLogId}')" class="bg-green-100 text-green-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-green-200">อุทธรณ์ฟังขึ้น: คืนคะแนนเดิม</button>
+                                    <button onclick="approveAction('${r.docId}', 'tambon', 'EditScore', null, '${r.officialId}', '${r.categoryId}', '${r.activityName}', '${r.detail}', 'APPEAL', '${r.refLogId}')" class="bg-blue-100 text-blue-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-200">อุทธรณ์ฟังขึ้น: แก้ไขคะแนนตามที่ระบุ</button>
+                                    <button onclick="approveAction('${r.docId}', 'tambon', 'Forward', 0, null, null, null, null, 'APPEAL')" class="bg-indigo-100 text-indigo-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-200 mt-2">ส่งอุทธรณ์ให้อำเภอพิจารณา</button>
+                                    <button onclick="approveAction('${r.docId}', 'tambon', 'ConfirmDeduction', 0, null, null, null, null, 'APPEAL')" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-200">อุทธรณ์ฟังไม่ขึ้น: ยืนยันการหัก</button>
+                                </div>
+                            `;
+                        } else if (curUser.role === 'district') {
+                            actionHtml = `
+                                <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขหมวดคะแนน</label>
+                                    <select id="editCat_${r.docId}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none">${getCriteriaOptions(r.categoryId)}</select>
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขชื่อกิจกรรม/ผลงาน</label>
+                                    <input type="text" id="editActName_${r.docId}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" value="${r.activityName}">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขรายละเอียด</label>
+                                    <textarea id="editActDetail_${r.docId}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" rows="2">${r.detail}</textarea>
+                                    <div class="flex items-center justify-between border-t pt-3">
+                                        <label class="text-xs font-bold text-slate-700">ระบุคะแนนใหม่:</label>
+                                        <input type="number" id="apvScore_${r.docId}" class="w-24 p-2 border rounded-lg text-center font-bold text-indigo-600 text-sm outline-none" value="${Math.abs(r.reqScore)}" step="0.5">
                                     </div>
                                 </div>
-                                <div class="flex flex-col justify-end gap-2 border-t md:border-t-0 md:border-l pt-5 md:pt-0 pl-0 md:pl-6 min-w-[320px]">
-                                    ${actionHtml}
+                                <div class="grid grid-cols-1 gap-2">
+                                    <button onclick="approveAction('${r.docId}', 'district', 'RestoreScore', ${r.reqScore}, '${r.officialId}', null, null, null, 'APPEAL', '${r.refLogId}')" class="bg-green-100 text-green-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-green-200">อุทธรณ์ฟังขึ้น: คืนคะแนนเดิม</button>
+                                    <button onclick="approveAction('${r.docId}', 'district', 'EditScore', null, '${r.officialId}', '${r.categoryId}', '${r.activityName}', '${r.detail}', 'APPEAL', '${r.refLogId}')" class="bg-blue-100 text-blue-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-200">อุทธรณ์ฟังขึ้น: แก้ไขคะแนนตามที่ระบุ</button>
+                                    <button onclick="approveAction('${r.docId}', 'district', 'ConfirmDeduction', 0, null, null, null, null, 'APPEAL')" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-200 mt-2">อุทธรณ์ฟังไม่ขึ้น: ยืนยันการหัก</button>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        if (curUser.role === 'tambon') {
+                            actionHtml = `
+                                <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">ให้คะแนนอนุมัติ (ตำบลให้ได้สูงสุด 2 คะแนน)</label>
+                                    <input type="number" id="apvScoreTam_${r.docId}" class="w-full p-2 border rounded-lg text-center font-bold text-green-600 text-sm focus:ring-1 focus:ring-green-400 outline-none" value="${Math.min(r.reqScore, 2)}" min="0.5" step="0.5" max="2">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="approveAction('${r.docId}', 'tambon', 'Rejected', 0)" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-red-200">ไม่อนุมัติ</button>
+                                    <button onclick="approveAction('${r.docId}', 'tambon', 'Approved', null, '${r.officialId}', '${r.categoryId}', '${r.activityName}', '${r.detail}', '${r.type}')" class="bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-green-700">อนุมัติให้คะแนน</button>
+                                    <button onclick="approveAction('${r.docId}', 'tambon', 'Forward', 0)" class="col-span-2 bg-blue-100 text-blue-700 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-blue-200 mt-1">ส่งให้อำเภอ (กรณีขอเกิน 2 คะแนน)</button>
+                                </div>
+                            `;
+                        } else if (curUser.role === 'district') {
+                            actionHtml = `
+                                <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขหมวดคะแนน</label>
+                                    <select id="editCat_${r.docId}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none">${getCriteriaOptions(r.categoryId)}</select>
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขชื่อกิจกรรม/ผลงาน</label>
+                                    <input type="text" id="editActName_${r.docId}" class="w-full p-2 border rounded-lg text-xs mb-3 bg-slate-50 outline-none" value="${r.activityName}">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขรายละเอียดเพิ่มเติม</label>
+                                    <textarea id="editActDetail_${r.docId}" class="w-full p-2 border rounded-lg text-xs bg-slate-50 focus:ring-1 focus:ring-amber-400 outline-none" rows="2">${r.detail}</textarea>
+                                    <div class="mt-4 flex items-center justify-between border-t pt-3">
+                                        <label class="text-xs font-bold text-slate-700">ปรับคะแนนอนุมัติ:</label>
+                                        <input type="number" id="apvScore_${r.docId}" class="w-24 p-2 border rounded-lg text-center font-bold text-indigo-600 text-sm focus:ring-1 focus:ring-amber-400 outline-none" value="${Math.abs(r.reqScore)}" step="0.5">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="approveAction('${r.docId}', 'district', 'Rejected', 0)" class="bg-red-600 text-white py-3 rounded-xl text-sm font-bold shadow-sm hover:bg-red-700">ปฏิเสธคำร้อง</button>
+                                    <button onclick="approveAction('${r.docId}', 'district', 'Approved', null, '${r.officialId}', '${r.categoryId}', '${r.activityName}', '${r.detail}', '${r.type}')" class="bg-green-600 text-white py-3 rounded-xl text-sm font-bold shadow-sm hover:bg-green-700">อนุมัติ (บวกคะแนน)</button>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    let tamStatHTML = '';
+                    if (r.statTam === 'Approved') tamStatHTML = '<span class="text-green-600"><i class="fa-solid fa-check-circle"></i> ปลัดตำบลเห็นชอบแล้ว</span>';
+                    else if (r.statTam === 'Forwarded') tamStatHTML = '<span class="text-blue-600"><i class="fa-solid fa-share"></i> ปลัดตำบลส่งต่อให้อำเภอ</span>';
+                    else if (r.statTam === 'Rejected') tamStatHTML = '<span class="text-red-600"><i class="fa-solid fa-times-circle"></i> ปลัดตำบลไม่อนุมัติ</span>';
+                    else tamStatHTML = '<span class="text-amber-500"><i class="fa-solid fa-clock"></i> รอปลัดตำบลพิจารณา</span>';
+
+                    con.innerHTML += `
+                        <div class="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-6 hover:shadow-md transition">
+                            <div class="flex-grow">
+                                <div class="flex items-center gap-3 mb-3">${badge} <span class="text-xs text-slate-400 font-mono">${dateStr}</span></div>
+                                <h4 class="font-bold text-slate-800 text-lg">${off.fullName || r.officialId} <span class="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md ml-1">ต.${off.subdistrict || '-'}</span></h4>
+                                <div class="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <p class="text-xs text-indigo-500 font-bold uppercase mb-1">หมวดหมู่</p>
+                                    <p class="text-sm text-slate-800 font-bold mb-3">${CRITERIA[r.categoryId]?.name || r.categoryId}</p>
+                                    <p class="text-xs text-indigo-500 font-bold uppercase mb-1">เรื่อง / ผลงาน</p>
+                                    <p class="text-sm text-slate-700 mb-3">${r.activityName}</p>
+                                    <p class="text-xs text-indigo-500 font-bold uppercase mb-1">รายละเอียดชี้แจง</p>
+                                    <p class="text-sm text-slate-600 italic whitespace-pre-wrap">${r.detail}</p>
+                                </div>
+                                <div class="mt-4 flex items-center justify-between border-t pt-3">
+                                    <div class="flex items-center gap-2 text-sm text-slate-700"><b>คะแนนที่ขอ/ถูกหัก:</b> <span class="bg-indigo-100 text-indigo-700 font-bold text-xl px-3 py-1 rounded-lg">${Math.abs(r.reqScore)}</span> ${proof}</div>
+                                </div>
+                                <div class="mt-3 text-xs bg-slate-50 p-2.5 rounded-xl inline-block border border-slate-200 font-bold">
+                                    สถานะ: ${tamStatHTML}
                                 </div>
                             </div>
-                        `;
-                    });
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                            <div class="flex flex-col justify-end gap-2 border-t md:border-t-0 md:border-l pt-5 md:pt-0 pl-0 md:pl-6 min-w-[320px]">
+                                ${actionHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
         }
 
-        function approveAction(rowIdx, role, action, score, idCard='', origCatId='', origActName='', origActDetail='', type='', refLogId='') {
+        // --- เพิ่มฟังก์ชันจัดการอุทธรณ์กลับ ---
+        async function approveAction(reqDocId, role, action, score, idCard='', origCatId='', origActName='', origActDetail='', type='', refLogIds='') {
             let finalScore = score;
             let finalCat = origCatId;
             let finalActName = origActName;
             let finalActDetail = origActDetail;
 
             if (role === 'district' && (action === 'Approved' || action === 'EditScore')) {
-                finalScore = document.getElementById(`apvScore_${rowIdx}`).value;
-                finalCat = document.getElementById(`editCat_${rowIdx}`).value;
-                finalActName = document.getElementById(`editActName_${rowIdx}`).value;
-                finalActDetail = document.getElementById(`editActDetail_${rowIdx}`).value;
+                finalScore = document.getElementById(`apvScore_${reqDocId}`).value;
+                finalCat = document.getElementById(`editCat_${reqDocId}`).value;
+                finalActName = document.getElementById(`editActName_${reqDocId}`).value;
+                finalActDetail = document.getElementById(`editActDetail_${reqDocId}`).value;
             } else if (role === 'tambon' && (action === 'Approved' || action === 'EditScore')) {
-                finalScore = document.getElementById(`apvScoreTam_${rowIdx}`).value;
+                finalScore = document.getElementById(`apvScoreTam_${reqDocId}`).value;
                 if (Math.abs(finalScore) > 2 && action !== 'RestoreScore') {
-                    Swal.fire('ข้อผิดพลาด', 'ตำบลอนุมัติหรือแก้ไขได้ไม่เกิน 2 คะแนน โปรดส่งให้อำเภอพิจารณา', 'error');
-                    return;
+                    return Swal.fire('ข้อผิดพลาด', 'ตำบลอนุมัติหรือแก้ไขได้ไม่เกิน 2 คะแนน โปรดส่งให้อำเภอพิจารณา', 'error');
                 }
             }
-            
-            if (action === 'RestoreScore') {
-                finalScore = score; 
-            }
+            if (action === 'RestoreScore') finalScore = score; 
             
             setLoad(true, "กำลังประมวลผล...");
-            callServer('processRequest', {
-                payload: {
-                    rowIdx: rowIdx, role: role, action: action, approvedScore: finalScore, 
-                    idCard: idCard, editedCat: finalCat, editedActName: finalActName, 
-                    editedActDetail: finalActDetail, reqType: type, adminName: curUser.name,
-                    refLogId: refLogId
-                }
-            })
-            .then(r => {
-                setLoad(false); 
-                if(r.success) {
-                    Swal.fire('สำเร็จ', r.message, 'success');
-                    loadApprovalCenter(); 
-                    initAdmin(); 
+            try {
+                const reqRef = db.collection(`${basePath}/requests`).doc(reqDocId);
+                const reqSnap = await reqRef.get();
+                let reqData = reqSnap.data();
+
+                if (type === 'APPEAL') {
+                    if (action === 'ConfirmDeduction') {
+                        if (role === 'tambon') await reqRef.update({ statTam: 'Rejected', statDist: 'Rejected' });
+                        else await reqRef.update({ statDist: 'Rejected' });
+                    } else if (action === 'Forward') {
+                        await reqRef.update({ statTam: 'Forwarded' });
+                    } else if (action === 'RestoreScore' || action === 'EditScore') {
+                        if (role === 'tambon') await reqRef.update({ statTam: 'Approved', statDist: 'Auto-Approved' });
+                        else await reqRef.update({ statDist: 'Approved' });
+
+                        // ลบ log ก้อนเก่าทิ้ง
+                        if (refLogIds) {
+                            const ids = refLogIds.split(',');
+                            const batch = db.batch();
+                            ids.forEach(id => {
+                                batch.delete(db.collection(`${basePath}/score_logs`).doc(id));
+                            });
+                            await batch.commit();
+                        }
+
+                        if (action === 'EditScore') {
+                            const person = allData.find(x => x.idCard === idCard);
+                            if (person) {
+                                let val = Math.abs(parseFloat(finalScore));
+                                let logType = parseFloat(finalScore) >= 0 ? 'positive' : 'negative';
+                                let actTitle = finalActName.includes('(อุทธรณ์)') ? finalActName : finalActName + ' (อุทธรณ์)';
+                                
+                                await db.collection(`${basePath}/score_logs`).add({
+                                    idCard: idCard, fullName: person.fullName, categoryId: finalCat,
+                                    activityName: actTitle, activityDetail: finalActDetail, score: val,
+                                    type: logType, recordedBy: curUser.name, proofUrl: reqData.fileUrl || '',
+                                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                    dateStr: new Date().toLocaleDateString('th-TH')
+                                });
+                            }
+                        }
+                        await recalculateScore(idCard);
+                    }
                 } else {
-                    Swal.fire('Error', r.message, 'error');
+                    // REQUEST
+                    if (action === 'Approved') {
+                        if (role === 'tambon') await reqRef.update({ statTam: 'Approved', statDist: 'Auto-Approved', approvedScore: finalScore });
+                        else await reqRef.update({ categoryId: finalCat, activityName: finalActName, detail: finalActDetail, statDist: 'Approved', approvedScore: finalScore });
+                        
+                        const person = allData.find(x => x.idCard === idCard);
+                        if (person) {
+                            await db.collection(`${basePath}/score_logs`).add({
+                                idCard: idCard, fullName: person.fullName, categoryId: finalCat,
+                                activityName: finalActName, activityDetail: finalActDetail, score: Math.abs(parseFloat(finalScore)),
+                                type: 'positive', recordedBy: curUser.name, proofUrl: reqData.fileUrl || '',
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp(), dateStr: new Date().toLocaleDateString('th-TH')
+                            });
+                            await recalculateScore(idCard);
+                        }
+                    } else if (action === 'Forward') {
+                        await reqRef.update({ statTam: 'Forwarded' });
+                    } else if (action === 'Rejected') {
+                        if (role === 'tambon') await reqRef.update({ statTam: 'Rejected', statDist: 'Rejected' });
+                        else await reqRef.update({ statDist: 'Rejected' });
+                    }
                 }
-            })
-            .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                
+                Swal.fire('สำเร็จ', 'ดำเนินการพิจารณาเรียบร้อย', 'success');
+                loadApprovalCenter(); 
+                initAdmin(); 
+            } catch (err) {
+                Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
+            setLoad(false); 
         }
 
-        function loadMyRequestsStatus() {
+        async function loadMyRequestsStatus() {
             openModal('modal-my-reqs');
             const con = document.getElementById('myReqsContainer');
             con.innerHTML = '<div class="text-center p-10"><i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-500"></i></div>';
             
-            callServer('getPendingRequests', { role: 'user', filter: null, username: curUser.username })
-                .then(reqs => {
-                    con.innerHTML = '';
-                    if(!reqs.length) { con.innerHTML = '<div class="text-center p-10 text-slate-500 bg-white rounded-2xl shadow-sm">ไม่มีคำร้องหรืออุทธรณ์ในระบบ</div>'; return; }
+            try {
+                const reqsSnap = await db.collection(`${basePath}/requests`).where('officialId', '==', curUser.username).orderBy('timestamp', 'desc').get();
+                con.innerHTML = '';
+                if(reqsSnap.empty) { con.innerHTML = '<div class="text-center p-10 text-slate-500 bg-white rounded-2xl shadow-sm">ไม่มีคำร้องหรืออุทธรณ์ในระบบ</div>'; return; }
+                
+                reqsSnap.forEach(doc => {
+                    let r = doc.data();
+                    let badge = r.type === 'APPEAL' ? `<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold">อุทธรณ์</span>` : `<span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold">ขอคะแนน</span>`;
                     
-                    reqs.forEach(r => {
-                        let badge = r.type === 'APPEAL' ? `<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold">อุทธรณ์</span>` : `<span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold">ขอคะแนน</span>`;
-                        
-                        let statT = '', statD = '';
-                        if (r.statTam === 'Approved') {
-                            statT = '<span class="text-green-600 bg-green-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check"></i> อนุมัติ</span>';
-                            statD = '<span class="text-slate-400 font-bold">-</span>';
-                        } else if (r.statTam === 'Forwarded') {
-                            statT = '<span class="text-blue-600 bg-blue-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-share"></i> เห็นชอบ</span>';
-                            if (r.statDist === 'Approved') statD = '<span class="text-green-600 bg-green-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-double"></i> อนุมัติ (บวกคะแนนแล้ว)</span>';
-                            else if (r.statDist === 'Rejected') statD = '<span class="text-red-600 bg-red-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-times"></i> ปฏิเสธ</span>';
-                            else statD = '<span class="text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">รอพิจารณา</span>';
-                        } else if (r.statTam === 'Rejected') {
-                            statT = '<span class="text-red-600 bg-red-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-times"></i> ไม่อนุมัติ</span>';
-                            statD = '<span class="text-slate-400 font-bold">-</span>';
+                    // ปรับปรุงการตรวจสอบและการดึงค่าวันที่
+                    let dateStr = "-";
+                    if (r.timestamp) {
+                         if (typeof r.timestamp.toDate === 'function') {
+                            dateStr = new Date(r.timestamp.toDate()).toLocaleDateString('th-TH');
+                        } else if (r.timestamp.seconds) {
+                            dateStr = new Date(r.timestamp.seconds * 1000).toLocaleDateString('th-TH');
                         } else {
-                            statT = '<span class="text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">รอพิจารณา</span>';
-                            statD = '<span class="text-slate-400 font-bold">-</span>';
+                             let d = new Date(r.timestamp);
+                            if (!isNaN(d.getTime())) dateStr = d.toLocaleDateString('th-TH');
+                            else dateStr = r.dateStr || "-";
                         }
+                    } else if (r.dateStr) {
+                         dateStr = r.dateStr;
+                    }
 
-                        con.innerHTML += `
-                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-4">
-                                <div class="flex justify-between items-center mb-3">
-                                    <div class="flex items-center gap-3">${badge} <span class="text-xs text-slate-400 font-mono">${r.date}</span></div>
-                                    <div class="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">เกี่ยวข้อง <span class="text-indigo-600">${Math.abs(r.reqScore)}</span> คะแนน</div>
-                                </div>
-                                <p class="text-sm font-bold text-slate-800 mb-1">${r.category}</p>
-                                <p class="text-sm text-slate-700 font-medium mb-1">${r.activityName}</p>
-                                <p class="text-xs text-slate-500 mb-3 whitespace-pre-wrap italic">${r.activityDetail}</p>
-                                <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 text-xs gap-4">
-                                    <div class="text-center p-2 rounded-xl border border-slate-100"><b class="text-slate-500 block mb-1">ความเห็นตำบล:</b> ${statT}</div>
-                                    <div class="text-center p-2 rounded-xl border border-slate-100"><b class="text-slate-500 block mb-1">ผลอนุมัติอำเภอ:</b> ${statD}</div>
-                                </div>
+                    let statT = '', statD = '';
+                    if (r.statTam === 'Approved') {
+                        statT = '<span class="text-green-600 bg-green-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check"></i> อนุมัติ</span>';
+                        statD = '<span class="text-slate-400 font-bold">-</span>';
+                    } else if (r.statTam === 'Forwarded') {
+                        statT = '<span class="text-blue-600 bg-blue-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-share"></i> เห็นชอบ</span>';
+                        if (r.statDist === 'Approved') statD = '<span class="text-green-600 bg-green-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-double"></i> อนุมัติ (บวกคะแนนแล้ว)</span>';
+                        else if (r.statDist === 'Rejected') statD = '<span class="text-red-600 bg-red-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-times"></i> ปฏิเสธ</span>';
+                        else statD = '<span class="text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">รอพิจารณา</span>';
+                    } else if (r.statTam === 'Rejected') {
+                        statT = '<span class="text-red-600 bg-red-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-times"></i> ไม่อนุมัติ</span>';
+                        statD = '<span class="text-slate-400 font-bold">-</span>';
+                    } else {
+                        statT = '<span class="text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">รอพิจารณา</span>';
+                        statD = '<span class="text-slate-400 font-bold">-</span>';
+                    }
+
+                    con.innerHTML += `
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="flex items-center gap-3">${badge} <span class="text-xs text-slate-400 font-mono">${dateStr}</span></div>
+                                <div class="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">เกี่ยวข้อง <span class="text-indigo-600">${Math.abs(r.reqScore)}</span> คะแนน</div>
                             </div>
-                        `;
-                    });
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                            <p class="text-sm font-bold text-slate-800 mb-1">${CRITERIA[r.categoryId]?.name || r.categoryId}</p>
+                            <p class="text-sm text-slate-700 font-medium mb-1">${r.activityName}</p>
+                            <p class="text-xs text-slate-500 mb-3 whitespace-pre-wrap italic">${r.detail}</p>
+                            <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 text-xs gap-4">
+                                <div class="text-center p-2 rounded-xl border border-slate-100"><b class="text-slate-500 block mb-1">ความเห็นตำบล:</b> ${statT}</div>
+                                <div class="text-center p-2 rounded-xl border border-slate-100"><b class="text-slate-500 block mb-1">ผลอนุมัติอำเภอ:</b> ${statD}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+            }
         }
 
         // --- TOOLS ---
@@ -1120,19 +1469,32 @@
             const sels = Array.from(globalSelections);
             if(mode !== 'all' && !sels.length) return Swal.fire('เตือน','เลือกเป้าหมายก่อน','warning');
             
-            let baseArea = "";
-            if(mode === 'tambon_except') baseArea = document.getElementById('resetTargetBaseSub').value;
-            if(mode === 'village_except') baseArea = document.getElementById('resetTargetBaseSub').value + "|" + document.getElementById('resetTargetBaseVil').value;
+            let targets = [];
+            if (mode === 'multi_individual') targets = allData.filter(o => sels.includes(o.idCard));
+            else if (mode === 'multi_village') targets = allData.filter(o => sels.includes(o.subdistrict + '|' + o.rawVillage));
+            else if (mode === 'multi_tambon') targets = allData.filter(o => sels.includes(o.subdistrict));
+            else if (mode === 'all') targets = allData;
+            else if (mode === 'all_except') targets = allData.filter(o => !sels.includes(o.idCard));
+            else if (mode === 'tambon_except') targets = allData.filter(o => o.subdistrict === document.getElementById('resetTargetBaseSub').value && !sels.includes(o.idCard));
+            else if (mode === 'village_except') targets = allData.filter(o => o.subdistrict === document.getElementById('resetTargetBaseSub').value && o.rawVillage === document.getElementById('resetTargetBaseVil').value && !sels.includes(o.idCard));
 
-            Swal.fire({title:'ยืนยันล้างข้อมูลเป็น 0 ?', text:'ประวัติและคะแนนจะถูกลบ ไม่สามารถกู้คืนได้', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc2626'}).then(r => {
+            Swal.fire({title:'ยืนยันล้างข้อมูลเป็น 0 ?', text:'ประวัติและคะแนนจะถูกลบ ไม่สามารถกู้คืนได้', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc2626'}).then(async r => {
                 if(r.isConfirmed){
                     setLoad(true, "กำลังล้างข้อมูล...");
-                    callServer('resetScores', { payload: {user:curUser.username, targetMode:mode, baseArea:baseArea, selections:sels} })
-                        .then(res => {
-                            if(res.success) { initAdmin(); closeModal('modal-reset'); Swal.fire('สำเร็จ',res.message,'success'); }
-                            else { setLoad(false); Swal.fire('Error', res.message, 'error'); }
-                        })
-                        .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                    try {
+                        for(let p of targets) {
+                            // ลบ log ของคนนี้
+                            const lSnap = await db.collection(`${basePath}/score_logs`).where('idCard', '==', p.idCard).get();
+                            const batch = db.batch();
+                            lSnap.forEach(doc => batch.delete(doc.ref));
+                            await batch.commit();
+                            // รีเซ็ตเป็น 0
+                            await db.collection(`${basePath}/officials`).doc(p.docId || p.idCard).update({ totalScore: 0 });
+                        }
+                        initAdmin(); closeModal('modal-reset'); Swal.fire('สำเร็จ', `ล้างข้อมูล ${targets.length} รายการสำเร็จ`, 'success'); 
+                    } catch (err) {
+                        setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error');
+                    }
                 }
             });
         }
@@ -1181,31 +1543,31 @@
             openModal('editOffModal');
         }
 
-        function saveEditOff() {
+        async function saveEditOff() {
             const p = { 
                 idCard: document.getElementById('editOffId').value, 
                 fullName: document.getElementById('editOffName').value, 
                 position: document.getElementById('editOffPos').value, 
                 moo: document.getElementById('editOffMoo').value, 
-                village: document.getElementById('editOffVil').value, 
+                rawVillage: document.getElementById('editOffVil').value, 
+                village: document.getElementById('editOffVil').value ? `หมู่ที่ ${document.getElementById('editOffMoo').value} ${document.getElementById('editOffVil').value}` : '',
                 subdistrict: document.getElementById('editOffSub').value 
             };
             if(!p.fullName || !p.position || !p.subdistrict) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
             
             setLoad(true, "กำลังบันทึกการแก้ไข..."); 
-            callServer('manageOfficial', { manageAction: 'edit', data: p })
-                .then(r => { 
-                    setLoad(false);
-                    if(r.success){ 
-                        initAdmin(); 
-                        closeModal('editOffModal'); 
-                        Swal.fire({icon: 'success', title: 'สำเร็จ', text: r.message, timer: 1500, showConfirmButton: false});
-                    } else Swal.fire('เกิดข้อผิดพลาด', r.message, 'error');
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+            try {
+                const person = allData.find(x => x.idCard === p.idCard);
+                await db.collection(`${basePath}/officials`).doc(person.docId || p.idCard).update(p);
+                initAdmin(); 
+                closeModal('editOffModal'); 
+                Swal.fire({icon: 'success', title: 'สำเร็จ', text: 'แก้ไขข้อมูลบุคลากรสำเร็จ', timer: 1500, showConfirmButton: false});
+            } catch(err) {
+                Swal.fire('เกิดข้อผิดพลาด', String(err.message), 'error');
+            }
+            setLoad(false);
         }
 
-        // ฟังก์ชันลบรายชื่อบุคคล
         function deleteOff(idCard, name) {
             Swal.fire({
                 title: `ยืนยันลบรายชื่อ?`, 
@@ -1216,44 +1578,60 @@
                 cancelButtonColor: '#94a3b8',
                 confirmButtonText: 'ลบทิ้ง',
                 cancelButtonText: 'ยกเลิก'
-            }).then(r => {
+            }).then(async r => {
                 if(r.isConfirmed) {
                     setLoad(true, "กำลังลบรายชื่อ...");
-                    callServer('manageOfficial', { manageAction: 'delete', data: {idCard: idCard} })
-                        .then(res => {
-                            setLoad(false);
-                            if(res.success) { 
-                                initAdmin(); 
-                                Swal.fire({icon: 'success', title: 'สำเร็จ', text: res.message, timer: 1500, showConfirmButton: false});
-                            } else Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
-                        })
-                        .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+                    try {
+                        const person = allData.find(x => x.idCard === idCard);
+                        await db.collection(`${basePath}/officials`).doc(person.docId || idCard).delete();
+                        initAdmin(); 
+                        Swal.fire({icon: 'success', title: 'สำเร็จ', text: 'ลบรายชื่อสำเร็จ', timer: 1500, showConfirmButton: false});
+                    } catch(err) {
+                        Swal.fire('เกิดข้อผิดพลาด', String(err.message), 'error');
+                    }
+                    setLoad(false);
                 }
             });
         }
 
-        function saveOff() {
-            const p = { idCard:document.getElementById('newId').value, fullName:document.getElementById('newName').value, position:document.getElementById('newPos').value, moo:document.getElementById('newMoo').value, village:document.getElementById('newVil').value, subdistrict:document.getElementById('newSub').value };
+        async function saveOff() {
+            const p = { 
+                idCard: document.getElementById('newId').value, 
+                fullName: document.getElementById('newName').value, 
+                position: document.getElementById('newPos').value, 
+                moo: document.getElementById('newMoo').value, 
+                rawVillage: document.getElementById('newVil').value, 
+                village: document.getElementById('newVil').value ? `หมู่ที่ ${document.getElementById('newMoo').value} ${document.getElementById('newVil').value}` : '',
+                subdistrict: document.getElementById('newSub').value,
+                totalScore: 0
+            };
+            if(!p.idCard || !p.fullName || !p.subdistrict) return Swal.fire('เตือน', 'กรอกเลขบัตรและชื่อให้ครบ', 'warning');
+
             setLoad(true); 
-            callServer('manageOfficial', { manageAction: 'add', data: p })
-                .then(r => { 
-                    if(r.success){ initAdmin(); closeModal('offModal'); } 
-                    setLoad(false); 
-                    Swal.fire(r.success?'สำเร็จ':'Error', r.message, r.success?'success':'error'); 
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+            try {
+                await db.collection(`${basePath}/officials`).doc(p.idCard).set(p);
+                initAdmin(); closeModal('offModal');
+                Swal.fire('สำเร็จ', 'เพิ่มรายชื่อสำเร็จ', 'success'); 
+            } catch(err) {
+                Swal.fire('เกิดข้อผิดพลาด', String(err.message), 'error');
+            }
+            setLoad(false);
         }
 
-        function changePass() {
+        async function changePass() {
             const oldP = document.getElementById('oldPass').value, newP = document.getElementById('newPass').value;
             setLoad(true); 
-            callServer('changePassword', { user: curUser.username, oldP: oldP, newP: newP })
-                .then(r => { 
-                    setLoad(false); 
-                    Swal.fire(r.success?'สำเร็จ':'Error', r.message, r.success?'success':'error'); 
-                    if(r.success) closeModal('modal-settings'); 
-                })
-                .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err), 'error'); });
+            try {
+                const adminDoc = await db.collection(`${basePath}/users_config`).doc(curUser.docId).get();
+                if(adminDoc.data().password !== oldP) throw new Error('รหัสผ่านเดิมไม่ถูกต้อง');
+                
+                await db.collection(`${basePath}/users_config`).doc(curUser.docId).update({ password: newP });
+                closeModal('modal-settings');
+                Swal.fire('สำเร็จ', 'เปลี่ยนรหัสผ่านสำเร็จ', 'success'); 
+            } catch(err) {
+                Swal.fire('เกิดข้อผิดพลาด', String(err.message), 'error');
+            }
+            setLoad(false); 
         }
     </script>
 </body>
