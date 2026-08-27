@@ -4,11 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>สรุปผลคะแนน DOPA NASAN Score</title>
+    
+    <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="DOPA_NASAN_Score_App_Icons/favicon-48.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="DOPA_NASAN_Score_App_Icons/apple-touch-icon.png">
+    <link rel="manifest" href="DOPA_NASAN_Score_App_Icons/manifest.webmanifest">
+    <meta name="theme-color" content="#082558">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -26,7 +33,6 @@
 </head>
 <body class="bg-slate-50 min-h-screen flex flex-col">
 
-    <!-- Header -->
     <header class="glass-header text-white shadow-lg pb-24">
         <div class="container mx-auto px-4 pt-6 pb-6">
             <div class="flex justify-between items-start">
@@ -49,7 +55,6 @@
     </header>
 
     <main class="container mx-auto px-4 -mt-16 flex-grow pb-10">
-        <!-- Stats -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-purple-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
                 <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">ทั้งหมด</p><h3 class="text-3xl md:text-4xl font-bold text-slate-800 mt-1" id="statTotal">0</h3></div>
@@ -69,7 +74,6 @@
             </div>
         </div>
 
-        <!-- Leaderboard -->
         <div class="bg-white rounded-3xl shadow-lg overflow-hidden border border-slate-100">
             <div class="p-5 md:p-6 border-b bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
                 <h2 class="text-lg md:text-xl font-bold text-slate-800"><i class="fa-solid fa-ranking-star text-yellow-500 mr-2 text-2xl"></i> อันดับคะแนนรวม</h2>
@@ -97,7 +101,6 @@
         </div>
     </main>
 
-    <!-- History Modal -->
     <div id="histModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white w-full h-full md:h-[85vh] md:max-w-4xl md:rounded-3xl flex flex-col shadow-2xl">
             <div class="p-5 border-b bg-slate-800 text-white md:rounded-t-3xl flex justify-between items-center flex-none">
@@ -114,7 +117,8 @@
                             <th class="p-4 w-28 text-center">วันที่</th>
                             <th class="p-4">รายละเอียดกิจกรรม</th>
                             <th class="p-4 text-center w-24">คะแนน</th>
-                            <th class="p-4 text-center w-28">หลักฐาน</th>
+                            <!-- คอลัมน์หลักฐาน ถูกซ่อนไว้เมื่อดูบนมือถือ (hidden md:table-cell) -->
+                            <th class="p-4 text-center w-28 hidden md:table-cell">หลักฐาน</th>
                         </tr>
                     </thead>
                     <tbody id="histBody" class="divide-y divide-slate-50 text-sm"></tbody>
@@ -124,9 +128,6 @@
     </div>
 
     <script>
-        // =========================================================================
-        // ตั้งค่า Firebase Configuration
-        // =========================================================================
         const firebaseConfig = {
           apiKey: "AIzaSyBPC8Wcv5InhI9O-2aMfvclF3fBtqSo1xo",
           authDomain: "dopa-nasan-score.firebaseapp.com",
@@ -137,17 +138,13 @@
           measurementId: "G-4QN247NQTT"
         };
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
-        const appId = 'dopa-nasan-score';
-        const basePath = `artifacts/${appId}/public/data`;
+        const basePath = `artifacts/dopa-nasan-score/public/data`;
 
         let allData = [];
 
-        // โหลดข้อมูลอัตโนมัติเมื่อเปิดหน้าเว็บ โดยรอจนกว่าจะ Auth เสร็จ
         window.onload = function() {
             auth.onAuthStateChanged((user) => {
                 if (user) {
@@ -180,6 +177,7 @@
                             position: data.position,
                             village: data.village,
                             rawVillage: data.rawVillage,
+                            moo: data.moo, 
                             subdistrict: data.subdistrict,
                             totalScore: data.totalScore || 0
                         };
@@ -188,7 +186,7 @@
                     const sel = document.getElementById('filterSub');
                     const curVal = sel.value;
                     
-                    const subs = [...new Set(allData.map(i=>i.subdistrict).filter(Boolean))].sort();
+                    const subs = [...new Set(allData.map(i=>i.subdistrict).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
                     sel.innerHTML = '<option value="">ทุกตำบล</option>' + subs.map(x=>`<option value="${x}">${x}</option>`).join('');
                     sel.value = curVal;
                     
@@ -204,17 +202,24 @@
         function filterList() {
             const s = document.getElementById('filterSub').value;
             const vSel = document.getElementById('filterVil');
+            const curV = vSel.value;
             
-            if(!s) { vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>'; } 
-            else {
-                const curV = vSel.value;
-                const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.rawVillage).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
+            if(!s) { 
+                vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>'; 
+            } else {
+                const vMap = new Map();
+                allData.filter(d => d.subdistrict === s && d.village).forEach(d => {
+                    let mooNum = parseInt(String(d.moo || d.village.match(/\d+/)?.[0] || 0));
+                    vMap.set(d.village, mooNum);
+                });
+                
+                const vs = Array.from(vMap.keys()).sort((a,b) => vMap.get(a) - vMap.get(b));
                 vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>' + vs.map(v=>`<option value="${v}">${v}</option>`).join('');
                 vSel.value = curV;
             }
 
             const v = vSel.value;
-            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.rawVillage===v));
+            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.village===v));
             renderStats(res); renderTable(res);
         }
 
@@ -249,7 +254,6 @@
             });
         }
 
-        // ฟังก์ชันจัดฟอร์แมตวันที่เป็น DD/MM/YYYY (พ.ศ.)
         function formatThaiDate(dateStr) {
             if (!dateStr) return "-";
             let parts = dateStr.split(/[-/]/);
@@ -263,7 +267,6 @@
             return dateStr;
         }
         
-        // ฟังก์ชันแปลงวันที่สำหรับการเรียงลำดับ (มากไปน้อย)
         function parseDateForSort(dateStr) {
              if (!dateStr) return 0;
              let parts = dateStr.split(/[-/]/);
@@ -295,17 +298,15 @@
                     let logsArr = [];
                     snap.docs.forEach(doc => logsArr.push(doc.data()));
                     
-                    // จัดกลุ่มคะแนนตามวันที่และชื่อกิจกรรม (ก้อนคะแนนใหญ่)
                     let grouped = {};
                     let order = [];
                     
                     logsArr.forEach(l => {
-                        // ใช้ dateStr แทน timestamp เพื่อป้องกันบั๊กเวลาเอาข้อมูลเข้าจาก Excel
                         let dateKey = l.dateStr || '';
                         let sortTime = parseDateForSort(dateKey);
                         let key = dateKey + '_' + l.activityName;
                         let rawSc = Number(l.score) || 0;
-                        let actualScore = l.type === 'negative' ? -Math.abs(rawSc) : Math.abs(rawSc);
+                        let actualScore = (l.type === 'negative' || l.scoreType === 'negative') ? -Math.abs(rawSc) : Math.abs(rawSc);
                         
                         if (!grouped[key]) {
                             grouped[key] = {
@@ -322,8 +323,6 @@
                     });
 
                     let finalHistory = order.map(k => grouped[k]);
-                    
-                    // เรียงลำดับจากวันที่ล่าสุดอยู่บนสุด
                     finalHistory.sort((a, b) => b.sortTime - a.sortTime);
                     
                     finalHistory.forEach(l => {
@@ -332,18 +331,25 @@
                         let scoreDisplay = (isNegative ? '' : '+') + l.rawScore;
                         let scoreHtml = `<span class="${!isNegative ? 'text-green-600' : 'text-red-600'}">${scoreDisplay}</span>`;
                         
-                        // สร้างปุ่มหลักฐาน
                         let proofLink = l.proof ? l.proof : '';
-                        let proofBtn = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition whitespace-nowrap inline-flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-paperclip"></i> ดูไฟล์</a>` : '<span class="text-slate-300">-</span>';
                         
+                        // ปรับปุ่มหลักฐานให้เหมาะสม
+                        // ปุ่มสำหรับจอคอม (จะถูกซ่อนบนมือถือ)
+                        let proofBtnDesktop = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition whitespace-nowrap inline-flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-paperclip"></i> ดูไฟล์</a>` : '<span class="text-slate-300">-</span>';
+                        
+                        // ปุ่มสำหรับมือถือ (จะอยู่ใต้ชื่อกิจกรรม และถูกซ่อนบนจอคอม)
+                        let proofBtnMobile = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition whitespace-nowrap inline-flex items-center justify-center gap-1 mt-2 w-auto"><i class="fa-solid fa-paperclip"></i> ดูไฟล์หลักฐาน</a>` : '';
+
                         tb.innerHTML += `<tr class="hover:bg-slate-50 transition border-b border-slate-50">
                             <td class="p-3 md:p-4 text-[10px] md:text-sm text-slate-500 font-mono align-top text-center pt-4 md:pt-5">${dateDisplay}</td>
                             <td class="p-3 md:p-4 text-sm align-top">
                                 <div class="text-slate-800 font-medium leading-relaxed">${l.activityName}</div>
-                                <!-- ไม่แสดง Breakdown ในหน้า Dashboard -->
+                                <!-- ปุ่มนี้โชว์เฉพาะมือถือ -->
+                                <div class="md:hidden">${proofBtnMobile}</div>
                             </td>
                             <td class="p-3 md:p-4 text-center font-bold text-lg md:text-xl align-top pt-4 md:pt-5">${scoreHtml}</td>
-                            <td class="p-4 text-center align-top pt-5">${proofBtn}</td>
+                            <!-- คอลัมน์นี้โชว์เฉพาะคอมพิวเตอร์ -->
+                            <td class="p-4 text-center align-top pt-5 hidden md:table-cell">${proofBtnDesktop}</td>
                         </tr>`;
                     });
                 })
