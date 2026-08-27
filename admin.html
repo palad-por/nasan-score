@@ -159,7 +159,7 @@
 
     <!-- 1. Score Modal (Admin) -->
     <div id="scoreModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
-        <div class="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:rounded-2xl md:max-w-4xl flex flex-col shadow-2xl">
+        <div class="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:rounded-2xl md:max-w-5xl flex flex-col shadow-2xl">
             <div class="p-4 border-b bg-indigo-600 text-white md:rounded-t-2xl flex justify-between items-center flex-none">
                 <h3 class="font-bold text-lg"><i class="fa-solid fa-star-half-stroke mr-2"></i>บันทึกคะแนน</h3>
                 <button onclick="closeModal('scoreModal')" class="p-2"><i class="fa-solid fa-times text-xl"></i></button>
@@ -262,7 +262,7 @@
         </div>
     </div>
 
-    <!-- 4. User Request Modal (Split fields) -->
+    <!-- 4. User Request Modal (Split fields + Hybrid Evidence) -->
     <div id="modal-req" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border-t-4 border-indigo-500">
             <div class="p-4 bg-white text-slate-800 border-b flex justify-between"><h3 class="font-bold text-indigo-700">ยื่นคำร้องเสนอผลงาน</h3><button onclick="closeModal('modal-req')"><i class="fa-solid fa-times text-lg"></i></button></div>
@@ -271,16 +271,21 @@
                 <div><label class="text-xs font-bold text-slate-500">หมวดหมู่ผลงาน</label><select id="reqCat" class="w-full p-3 border rounded-xl bg-white text-sm outline-none focus:ring-1 focus:ring-indigo-400"></select></div>
                 <div><label class="text-xs font-bold text-slate-500">ชื่อผลงาน</label><input id="reqTitle" class="w-full p-3 border rounded-xl bg-white text-sm outline-none focus:ring-1 focus:ring-indigo-400" placeholder="เช่น บริจาคโลหิต"></div>
                 <div><label class="text-xs font-bold text-slate-500">รายละเอียดผลงาน</label><textarea id="reqDesc" class="w-full p-3 border rounded-xl bg-white text-sm h-20 outline-none focus:ring-1 focus:ring-indigo-400" placeholder="อธิบายเพิ่มเติม..."></textarea></div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="text-xs font-bold text-slate-500">คะแนนที่ขอ</label><input type="number" id="reqScore" class="w-full p-3 border rounded-xl bg-white text-sm font-bold text-indigo-600 text-center outline-none focus:ring-1 focus:ring-indigo-400" value="1" min="0.5" step="0.5"></div>
-                    <div><label class="text-xs font-bold text-slate-500">แนบไฟล์หลักฐาน</label><input type="file" id="reqFile" class="w-full p-2 border rounded-xl bg-white text-xs mt-1" accept="image/*,.pdf,video/*"></div>
+                <div><label class="text-xs font-bold text-slate-500">คะแนนที่ขอ</label><input type="number" id="reqScore" class="w-full p-3 border rounded-xl bg-white text-sm font-bold text-indigo-600 text-center outline-none focus:ring-1 focus:ring-indigo-400" value="1" min="0.5" step="0.5"></div>
+                
+                <div class="bg-white p-3 border rounded-xl">
+                    <label class="text-xs font-bold text-indigo-600 block border-b pb-1 mb-2"><i class="fa-solid fa-paperclip"></i> แนบหลักฐาน (เลือกอย่างใดอย่างหนึ่ง)</label>
+                    <label class="text-[10px] font-bold text-slate-500">1. อัปโหลดไฟล์ (รูป/PDF)</label>
+                    <input type="file" id="reqFile" class="w-full p-2 border rounded-lg bg-slate-50 text-xs mb-2" accept="image/*,.pdf,video/*">
+                    <label class="text-[10px] font-bold text-slate-500">2. หรือ วางลิงก์ (URL)</label>
+                    <input type="text" id="reqLink" class="w-full p-2.5 border rounded-lg bg-slate-50 text-xs outline-none focus:border-indigo-400" placeholder="https://...">
                 </div>
             </div>
             <div class="p-4 border-t bg-white flex gap-3"><button onclick="closeModal('modal-req')" class="flex-1 py-3.5 bg-slate-100 border rounded-xl font-bold text-slate-600">ยกเลิก</button><button onclick="submitReq('REQUEST')" class="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 active:scale-95 transition-transform">ส่งคำร้อง</button></div>
         </div>
     </div>
 
-    <!-- User Appeal Modal -->
+    <!-- User Appeal Modal (Hybrid Evidence) -->
     <div id="modal-appeal" class="hidden fixed inset-0 bg-slate-900/90 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border-t-4 border-orange-500">
             <div class="p-4 bg-white text-slate-800 border-b flex justify-between"><h3 class="font-bold text-orange-600">ยื่นอุทธรณ์การหักคะแนน</h3><button onclick="closeModal('modal-appeal')"><i class="fa-solid fa-times text-lg"></i></button></div>
@@ -289,7 +294,14 @@
                 <div><label class="text-xs font-bold text-slate-500">วันที่ยื่นอุทธรณ์</label><input type="date" id="appealDate" class="w-full p-3 border rounded-xl bg-white text-sm outline-none focus:ring-1 focus:ring-orange-400"></div>
                 <div><label class="text-xs font-bold text-slate-500">เรื่องอุทธรณ์ (กิจกรรมที่ถูกหักคะแนน)</label><input id="appealTitle" class="w-full p-3 border rounded-xl bg-slate-200 text-sm text-slate-600" readonly></div>
                 <div><label class="text-xs font-bold text-slate-500">รายละเอียดคำชี้แจง</label><textarea id="appealDesc" class="w-full p-3 border rounded-xl bg-white text-sm h-24 outline-none focus:ring-1 focus:ring-orange-400" placeholder="พิมพ์คำชี้แจงของคุณที่นี่..."></textarea></div>
-                <div><label class="text-xs font-bold text-slate-500">แนบไฟล์หลักฐานประกอบ</label><input type="file" id="appealFile" class="w-full p-2 border rounded-xl bg-white text-xs mt-1" accept="image/*,.pdf,video/*"></div>
+                
+                <div class="bg-white p-3 border rounded-xl">
+                    <label class="text-xs font-bold text-orange-600 block border-b pb-1 mb-2"><i class="fa-solid fa-paperclip"></i> แนบหลักฐานประกอบ (เลือกอย่างใดอย่างหนึ่ง)</label>
+                    <label class="text-[10px] font-bold text-slate-500">1. อัปโหลดไฟล์ (รูป/PDF)</label>
+                    <input type="file" id="appealFile" class="w-full p-2 border rounded-lg bg-slate-50 text-xs mb-2" accept="image/*,.pdf,video/*">
+                    <label class="text-[10px] font-bold text-slate-500">2. หรือ วางลิงก์ (URL)</label>
+                    <input type="text" id="appealLink" class="w-full p-2.5 border rounded-lg bg-slate-50 text-xs outline-none focus:border-orange-400" placeholder="https://...">
+                </div>
             </div>
             <div class="p-4 border-t bg-white flex gap-3"><button onclick="closeModal('modal-appeal')" class="flex-1 py-3.5 bg-slate-100 border rounded-xl font-bold text-slate-600">ยกเลิก</button><button onclick="submitReq('APPEAL')" class="flex-1 py-3.5 bg-orange-500 text-white rounded-xl font-bold shadow-lg hover:bg-orange-600 active:scale-95 transition-transform">ส่งอุทธรณ์</button></div>
         </div>
@@ -702,7 +714,7 @@
         function quickScore(id) { openScoreModal(); globalSelections.add(id); renderTargetUI(); }
         
         function initActivityRow() { actRows = []; addAct(); }
-        function addAct() { actRows.push({id:Date.now(), cat:'', name:'', date:new Date().toISOString().split('T')[0], type:'positive', score:'1', file:null}); renderActs(); }
+        function addAct() { actRows.push({id:Date.now(), cat:'', name:'', date:new Date().toISOString().split('T')[0], type:'positive', score:'1', file:null, link:''}); renderActs(); }
         
         function renderActs() {
             const con = document.getElementById('actContainer'); con.innerHTML='';
@@ -715,11 +727,12 @@
                         <div><label class="text-[10px] font-bold text-slate-500 uppercase">หมวดหมู่</label><select class="w-full p-3 text-sm border rounded-xl bg-white outline-none focus:ring-1 focus:ring-indigo-400" onchange="updAct(${r.id},'cat',this.value)">${opts.replace(`value="${r.cat}"`,`value="${r.cat}" selected`)}</select></div>
                         <div><label class="text-[10px] font-bold text-slate-500 uppercase">ชื่อกิจกรรม</label><input type="text" class="w-full p-3 text-sm border rounded-xl bg-white outline-none focus:ring-1 focus:ring-indigo-400" placeholder="ระบุกิจกรรม..." value="${r.name}" onchange="updAct(${r.id},'name',this.value)"></div>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
                         <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">วันที่</label><input type="date" class="w-full p-3 text-sm border rounded-xl outline-none focus:ring-1" value="${r.date}" onchange="updAct(${r.id},'date',this.value)"></div>
                         <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">รูปแบบ (+/-)</label><select class="w-full p-3 text-sm border rounded-xl font-bold outline-none" onchange="updAct(${r.id},'type',this.value)"><option value="positive" class="text-green-600" ${r.type==='positive'?'selected':''}>+ บวก</option><option value="negative" class="text-red-600" ${r.type==='negative'?'selected':''}>- หัก</option></select></div>
                         <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">คะแนน</label><input type="number" class="w-full p-3 text-sm border rounded-xl text-center text-indigo-600 font-bold outline-none focus:ring-1" value="${r.score}" onchange="updAct(${r.id},'score',this.value)" min="0.5" step="0.5"></div>
-                        <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">หลักฐาน (รูป/PDF)</label><input type="file" class="w-full p-2.5 bg-white border rounded-xl text-[10px] mt-0.5" onchange="updAct(${r.id},'file',this.files[0])"></div>
+                        <div class="col-span-1"><label class="text-[10px] font-bold text-slate-500 uppercase">หลักฐาน (ไฟล์)</label><input type="file" class="w-full p-2 bg-white border rounded-xl text-[10px] mt-1" onchange="updAct(${r.id},'file',this.files[0])"></div>
+                        <div class="col-span-1 md:col-span-1 col-span-2"><label class="text-[10px] font-bold text-slate-500 uppercase">หรือ วางลิงก์ (URL)</label><input type="text" class="w-full p-2.5 bg-white border rounded-xl text-xs mt-1 outline-none focus:ring-1 focus:ring-indigo-400" placeholder="https://..." value="${r.link}" onchange="updAct(${r.id},'link',this.value)"></div>
                     </div>
                 </div>`;
             });
@@ -749,7 +762,7 @@
                 for (let act of actRows) {
                     if(!act.cat || !act.name || !act.score) throw new Error('กรอกข้อมูลกิจกรรมให้ครบทุกช่อง');
                     
-                    let proofUrl = '';
+                    let proofUrl = (act.link || '').trim();
                     if (act.file) {
                         const ext = act.file.name.split('.').pop();
                         const ref = storage.ref(`evidence/admin/${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`);
@@ -1093,12 +1106,15 @@
         async function submitReq(type) {
             let p = { type: type, officialId: curUser.username, fullName: curUser.name };
             let file;
+            let reqLink = '';
+            
             if (type === 'REQUEST') {
                 p.categoryId = document.getElementById('reqCat').value;
                 p.activityName = document.getElementById('reqTitle').value;
                 p.detail = document.getElementById('reqDesc').value;
                 p.reqScore = document.getElementById('reqScore').value;
                 file = document.getElementById('reqFile').files[0];
+                reqLink = document.getElementById('reqLink').value.trim();
             } else {
                 p.categoryId = document.getElementById('appealCatId').value;
                 p.activityName = document.getElementById('appealTitle').value;
@@ -1106,18 +1122,19 @@
                 p.reqScore = document.getElementById('appealScore').value;
                 p.refLogId = document.getElementById('appealLogId').value;
                 file = document.getElementById('appealFile').files[0];
+                reqLink = document.getElementById('appealLink').value.trim();
             }
 
-            if(!p.categoryId || !p.activityName || !file) return Swal.fire('เตือน','กรุณาระบุข้อมูลให้ครบ และแนบไฟล์หลักฐานประกอบ','warning');
+            if(!p.categoryId || !p.activityName || (!file && !reqLink)) return Swal.fire('เตือน','กรุณาระบุข้อมูลให้ครบ และแนบไฟล์หรือวางลิงก์หลักฐานประกอบ','warning');
             
             setLoad(true, "กำลังส่งข้อมูลเข้าสู่ระบบ...");
             try {
-                let fileUrl = '';
+                let fileUrl = reqLink; // ใช้ลิงก์เป็นค่าเริ่มต้นถ้ามี
                 if (file) {
                     const ext = file.name.split('.').pop();
                     const ref = storage.ref(`evidence/${curUser.username}/${Date.now()}_document.${ext}`);
                     await ref.put(file);
-                    fileUrl = await ref.getDownloadURL();
+                    fileUrl = await ref.getDownloadURL(); // ถ้ามีไฟล์ จะทับลิงก์ไปเลย
                 }
 
                 await db.collection(`${basePath}/requests`).add({
