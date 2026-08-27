@@ -3,17 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Sheets V22 - Full Data Retainer</title>
+    <title>Firebase Sheets V25 - Editable Data Retainer</title>
+    
+    <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="DOPA_NASAN_Score_App_Icons/favicon-48.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="DOPA_NASAN_Score_App_Icons/apple-touch-icon.png">
+    <link rel="manifest" href="DOPA_NASAN_Score_App_Icons/manifest.webmanifest">
+    <meta name="theme-color" content="#4f46e5">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, writeBatch, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyBPC8Wcv5InhI9O-2aMfvclF3fBtqSo1xo",
@@ -47,9 +55,11 @@
                     { key: 'idCard', label: 'เลข ปชช.' },
                     { key: 'fullName', label: 'ชื่อ-สกุล' },
                     { key: 'position', label: 'ตำแหน่ง' },
-                    { key: 'village', label: 'หมู่บ้าน' },
+                    { key: 'moo', label: 'หมู่ที่ (เลข)' },
+                    { key: 'rawVillage', label: 'ชื่อบ้าน' },
+                    { key: 'village', label: 'หมู่บ้านเต็ม' },
                     { key: 'subdistrict', label: 'ตำบล' },
-                    { key: 'totalScore', label: 'คะแนนรวม' }
+                    { key: 'totalScore', label: 'คะแนนรวม', isNumber: true }
                 ]
             },
             score_logs: {
@@ -60,12 +70,12 @@
                     { key: 'fullName', label: 'ชื่อ-สกุล' },
                     { key: 'categoryId', label: 'หมวด' },
                     { key: 'activityName', label: 'กิจกรรม' },
-                    { key: 'score', label: 'คะแนน' },
+                    { key: 'score', label: 'คะแนน', isNumber: true },
                     { key: 'type', label: 'ประเภท (+/-)' },
                     { key: 'proofUrl', label: 'หลักฐาน' }
                 ]
             },
-            requests_appeals: {
+            requests: {
                 docIdField: 'ReqID',
                 cols: [
                     { key: 'ReqID', label: 'ReqID' },
@@ -73,7 +83,7 @@
                     { key: 'ID_Card', label: 'ID_Card' },
                     { key: 'FullName', label: 'FullName' },
                     { key: 'ActivityName', label: 'ActivityName' },
-                    { key: 'RequestedScore', label: 'ReqScore' },
+                    { key: 'RequestedScore', label: 'ReqScore', isNumber: true },
                     { key: 'StatusDistrict', label: 'Status' }
                 ]
             }
@@ -81,6 +91,7 @@
 
         let currentTable = 'users_config';
         let tableData = [];
+        let isEditingMode = false;
 
         window.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -100,16 +111,27 @@
         window.fetchDataFromFirebase = async function() {
             Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             tableData = [];
+            isEditingMode = true; 
+            document.getElementById('saveBtn').style.display = 'block'; 
+            document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-save"></i> บันทึกการแก้ไข (Update)';
+
             try {
                 const querySnapshot = await getDocs(collection(db, `${basePath}/${currentTable}`));
                 querySnapshot.forEach((document) => {
                     let data = document.data();
-                    let schema = schemas[currentTable];
-                    let normalized = {};
-                    for (let k in data) { normalized[k] = data[k]; }
-                    if (schema.docIdField && !normalized[schema.docIdField]) {
-                        normalized[schema.docIdField] = document.id;
+                    
+                    // V25 Fix: สำหรับตาราง requests พยายามดึงคีย์ต่างๆ ที่อาจจะเพี้ยนจาก Excel หรือ App
+                    if (currentTable === 'requests') {
+                        data.ReqID = data.ReqID || data.reqId || document.id;
+                        data.Type = data.Type || data.type || '';
+                        data.ID_Card = data.ID_Card || data.idCard || data.officialId || '';
+                        data.FullName = data.FullName || data.fullName || '';
+                        data.ActivityName = data.ActivityName || data.activityName || '';
+                        data.RequestedScore = data.RequestedScore || data.reqScore || data.requestedScore || 0;
+                        data.StatusDistrict = data.StatusDistrict || data.statDist || data.statusDistrict || '';
                     }
+
+                    let normalized = { ...data, _firebaseDocId: document.id, _isDirty: false };
                     tableData.push(normalized);
                 });
                 renderTable();
@@ -126,32 +148,56 @@
             
             let thHtml = '<tr><th class="w-12">No.</th>';
             schema.cols.forEach(c => { thHtml += `<th class="p-2">${c.label}</th>`; });
-            thHtml += '<th class="w-12">ลบ</th></tr>';
+            thHtml += `<th class="w-16">ลบ</th></tr>`;
             thead.innerHTML = thHtml;
 
             let tbHtml = '';
-            let displayCount = Math.min(tableData.length, 100);
+            let displayCount = Math.min(tableData.length, 100); // โชว์แค่ 100 เพื่อไม่ให้ค้าง
             
             for(let rowIndex = 0; rowIndex < displayCount; rowIndex++) {
                 let row = tableData[rowIndex];
-                tbHtml += `<tr><td class="row-num">${rowIndex + 1}</td>`;
+                let trClass = row._isDirty ? 'bg-amber-50' : '';
+                tbHtml += `<tr class="${trClass} transition-colors duration-300" id="tr-${rowIndex}"><td class="row-num">${rowIndex + 1}</td>`;
+                
                 schema.cols.forEach(c => {
                     let val = row[c.key] !== undefined ? row[c.key] : '';
-                    tbHtml += `<td class="p-1"><input type="text" class="sheet-input" value="${val}" onchange="updateCell(${rowIndex}, '${c.key}', this.value)"></td>`;
+                    let inputType = c.isNumber ? 'number' : 'text';
+                    tbHtml += `<td class="p-1"><input type="${inputType}" step="any" class="sheet-input" value="${val}" onchange="updateCell(${rowIndex}, '${c.key}', this.value)"></td>`;
                 });
-                tbHtml += `<td class="text-center bg-slate-50"><button onclick="deleteRow(${rowIndex})" class="text-red-400 hover:text-red-600 px-3 py-2"><i class="fa-solid fa-times"></i></button></td></tr>`;
+                
+                tbHtml += `<td class="text-center bg-slate-50"><button onclick="deleteRow(${rowIndex})" class="text-red-400 hover:text-red-600 px-3 py-2"><i class="fa-solid fa-trash"></i></button></td></tr>`;
             }
 
             if(tableData.length > 100) {
-                tbHtml += `<tr><td colspan="${schema.cols.length + 2}" class="text-center py-4 text-slate-500 font-bold bg-slate-50">... มีข้อมูลอีก ${tableData.length - 100} แถวซ่อนอยู่ (จะถูกบันทึกทั้งหมดเมื่อกดบันทึก) ...</td></tr>`;
+                tbHtml += `<tr><td colspan="${schema.cols.length + 2}" class="text-center py-4 text-slate-500 font-bold bg-slate-50">... มีข้อมูลอีก ${tableData.length - 100} แถวซ่อนอยู่ ...</td></tr>`;
             }
 
             tbody.innerHTML = tbHtml;
             document.getElementById('recordCount').innerText = `จำนวนทั้งหมด: ${tableData.length} แถว`;
         }
 
-        window.updateCell = function(rowIndex, key, value) { tableData[rowIndex][key] = value; }
-        window.deleteRow = function(index) { tableData.splice(index, 1); renderTable(); }
+        window.updateCell = function(rowIndex, key, value) { 
+            tableData[rowIndex][key] = value; 
+            tableData[rowIndex]._isDirty = true;
+            document.getElementById(`tr-${rowIndex}`).classList.add('bg-amber-50');
+        }
+
+        window.deleteRow = function(index) { 
+            const row = tableData[index];
+            if (row._firebaseDocId) {
+                Swal.fire({ title: 'ยืนยันการลบ?', text: 'ลบออกจาก Firebase ทันที', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(async (r) => {
+                    if(r.isConfirmed) {
+                        await deleteDoc(doc(db, `${basePath}/${currentTable}`, row._firebaseDocId));
+                        tableData.splice(index, 1); 
+                        renderTable();
+                        Swal.fire({icon: 'success', title: 'ลบแล้ว', timer: 1000, showConfirmButton: false});
+                    }
+                });
+            } else {
+                tableData.splice(index, 1); 
+                renderTable(); 
+            }
+        }
 
         window.triggerExcelUpload = function() {
             document.getElementById('excelFileInput').click();
@@ -172,26 +218,19 @@
                 if (currentTable === 'officials') targetSheetKeywords = ['bookkon', 'บุคลากร', 'official'];
                 else if (currentTable === 'score_logs') targetSheetKeywords = ['score', 'log', 'ประวัติ'];
                 else if (currentTable === 'users_config') targetSheetKeywords = ['user', 'config', 'ผู้ดูแล'];
-                else if (currentTable === 'requests_appeals') targetSheetKeywords = ['request', 'appeal', 'คำร้อง'];
+                else if (currentTable === 'requests') targetSheetKeywords = ['request', 'appeal', 'คำร้อง'];
 
                 let sheetMatch = null;
                 for (let sheetName of workbook.SheetNames) {
                     let sNameLower = sheetName.toLowerCase().replace(/\s/g, '');
                     for (let keyword of targetSheetKeywords) {
-                        if (sNameLower.includes(keyword)) {
-                            sheetMatch = sheetName;
-                            break;
-                        }
+                        if (sNameLower.includes(keyword)) { sheetMatch = sheetName; break; }
                     }
                     if (sheetMatch) break;
                 }
                 
                 if (!sheetMatch) {
-                    Swal.fire({
-                        title: 'หาชีตไม่เจอ!', 
-                        html: `ระบบหาชีตสำหรับ <b>${currentTable}</b> ไม่เจอครับ<br><br>ชีตที่มีในไฟล์คือ:<br><b class="text-indigo-600">${workbook.SheetNames.join(', ')}</b>`, 
-                        icon: 'error'
-                    });
+                    Swal.fire({ title: 'หาชีตไม่เจอ!', html: `ระบบหาชีตสำหรับ <b>${currentTable}</b> ไม่เจอครับ`, icon: 'error' });
                     document.getElementById('excelFileInput').value = '';
                     return;
                 }
@@ -199,6 +238,10 @@
                 const sheet = workbook.Sheets[sheetMatch];
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
                 
+                tableData = []; 
+                isEditingMode = false; 
+                document.getElementById('saveBtn').style.display = 'block'; 
+                document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> บันทึกไฟล์ใหม่ขึ้น Firebase';
                 let added = 0;
                 
                 jsonData.forEach(row => {
@@ -213,10 +256,10 @@
                         let idc = String(row[idKey]).replace(/\D/g, '');
                         let fn = String(row[nameKey] || 'ไม่ระบุชื่อ');
                         let pos = String(row['ตำแหน่ง'] || '-');
-                        let moo = String(row['หมู่ที่'] || '-');
-                        let rv = String(row['ชื่อบ้าน'] || '-');
+                        let moo = String(row['หมู่ที่'] || '');
+                        let rv = String(row['ชื่อบ้าน'] || '');
                         let sub = String(row['ตำบล'] || '-');
-                        let vil = (moo !== '-' && rv !== '-') ? `หมู่ที่ ${moo} ${rv}` : 'ไม่ระบุหมู่บ้าน';
+                        let vil = (moo && rv) ? `หมู่ที่ ${moo} ${rv}` : '';
                         let ts = parseFloat(row['คะแนนรวม']) || 0;
 
                         newObj.idCard = idc; newObj.ID_Card = idc;
@@ -241,22 +284,18 @@
                         } else if (dateVal) {
                             dStr = String(dateVal).split(' ')[0];
                         } else {
-                            dStr = new Date().toISOString().split('T')[0]; // ถ้าวันที่ว่าง ให้ใช้วันนี้
+                            dStr = new Date().toISOString().split('T')[0]; 
                         }
                         
                         let tStamp = String(row['Timestamp'] || row['Date'] || dStr);
-
                         let idc = String(row[idKey]).replace(/\D/g, '');
                         let fn = String(row['FullName'] || row['ชื่อ-สกุล'] || 'ไม่ระบุชื่อ');
-                        
                         let cat = String(row['Category'] || row['หมวดหมู่'] || '0').trim(); 
                         let act = String(row['ActivityName'] || row['ชื่อกิจกรรม'] || 'ไม่ระบุกิจกรรม').trim();
                         let actd = String(row['ActivityDetail'] || '').trim();
                         let sc = parseFloat(row['Score'] || row['คะแนน']) || 0;
                         let ty = String(row['Type'] || row['ประเภท'] || 'positive').trim();
                         let rb = String(row['RecordedBy'] || row['ผู้บันทึก'] || 'System').trim();
-                        
-                        // รอบนี้ ดึงลิงก์หลักฐานจาก Excel กลับมาให้ 100% ครับ
                         let pr = String(row['ProofLink'] || row['หลักฐาน'] || row['proofUrl'] || '').trim();
 
                         newObj.dateStr = dStr; newObj.Date = dStr; newObj.date = dStr;
@@ -294,7 +333,7 @@
                         newObj.name = n; newObj.DisplayName = n;
                         added++;
                     }
-                    else if (currentTable === 'requests_appeals') {
+                    else if (currentTable === 'requests') {
                         let idKey = Object.keys(row).find(k => k.toLowerCase().includes('req'));
                         if (!idKey || !row[idKey]) return;
                         
@@ -308,7 +347,6 @@
                         let reqs = parseFloat(row['RequestedScore']) || 0;
                         let st = String(row['StatusTambon'] || 'Pending');
                         let sd = String(row['StatusDistrict'] || 'Pending');
-                        
                         let pr = String(row['ProofLink'] || row['หลักฐาน'] || row['proofUrl'] || '').trim();
 
                         newObj.ReqID = reqId; newObj.reqId = reqId;
@@ -331,7 +369,7 @@
                 });
 
                 renderTable();
-                Swal.fire('สำเร็จ', `อ่านข้อมูลจากชีต "${sheetMatch}" ได้ ${added} รายการ\nกรุณากด "บันทึกขึ้น Firebase"`, 'success');
+                Swal.fire('สำเร็จ', `อ่านข้อมูลจากชีต "${sheetMatch}" ได้ ${added} รายการ\nกรุณากด "บันทึกไฟล์ใหม่" ด้านขวาบน`, 'success');
                 document.getElementById('excelFileInput').value = '';
             };
             
@@ -376,7 +414,7 @@
             if (tableData.length === 0) return Swal.fire('เตือน', 'ไม่มีข้อมูลให้บันทึก', 'warning');
 
             const result = await Swal.fire({
-                title: 'ยืนยันการบันทึก?',
+                title: isEditingMode ? 'ยืนยันการอัปเดตข้อมูล?' : 'ยืนยันการบันทึกใหม่?',
                 text: `กำลังบันทึกข้อมูลตาราง ${currentTable} จำนวน ${tableData.length} แถว\n(ระบบจะทยอยบันทึกทีละส่วนอัตโนมัติ)`,
                 icon: 'warning',
                 showCancelButton: true,
@@ -385,7 +423,6 @@
 
             if (!result.isConfirmed) return;
 
-            let timerInterval;
             Swal.fire({
                 title: 'กำลังบันทึกข้อมูล...',
                 html: 'บันทึกไปแล้ว <b>0</b> แถว (ห้ามปิดหน้าจอ)',
@@ -403,10 +440,26 @@
                     const batch = writeBatch(db);
                     
                     chunk.forEach((row, j) => {
-                        let docId = schema.docIdField ? row[schema.docIdField] : null;
+                        let docId = schema.docIdField ? row[schema.docIdField] : row._firebaseDocId;
                         if (!docId) docId = 'ID-' + Date.now() + '-' + (i+j);
                         const ref = doc(db, `${basePath}/${currentTable}`, String(docId));
-                        batch.set(ref, row);
+                        
+                        let cleanRow = { ...row };
+                        delete cleanRow._firebaseDocId;
+                        delete cleanRow._isDirty;
+                        
+                        // บังคับให้คอลัมน์ที่เป็นตัวเลขเป็น Number จริงๆ ก่อนบันทึก
+                        schema.cols.forEach(c => {
+                            if(c.isNumber && cleanRow[c.key] !== undefined && cleanRow[c.key] !== "") {
+                                cleanRow[c.key] = Number(cleanRow[c.key]) || 0;
+                            }
+                        });
+
+                        if (isEditingMode) {
+                            if (row._isDirty) batch.set(ref, cleanRow, { merge: true });
+                        } else {
+                            batch.set(ref, cleanRow);
+                        }
                     });
 
                     await batch.commit();
@@ -414,7 +467,9 @@
                     Swal.update({ html: `บันทึกไปแล้ว <b>${processedCount}</b> จาก ${tableData.length} แถว (ห้ามปิดหน้าจอ)` });
                 }
 
-                Swal.fire('สำเร็จ', `บันทึกข้อมูล ${tableData.length} รายการ ขึ้น Firebase เรียบร้อยแล้ว!`, 'success');
+                Swal.fire('สำเร็จ', `บันทึกข้อมูล ${tableData.length} รายการ ขึ้น Firebase เรียบร้อยแล้ว!`, 'success').then(() => {
+                    fetchDataFromFirebase(); // โหลดใหม่เพื่ออัปเดต ID
+                });
             } catch (err) {
                 Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
             }
@@ -437,9 +492,9 @@
 
     <header class="bg-indigo-700 text-white p-3 flex justify-between items-center flex-none shadow-md">
         <div class="flex items-center gap-3">
-            <i class="fa-solid fa-cloud-arrow-up text-2xl text-emerald-400"></i>
+            <i class="fa-solid fa-database text-2xl text-emerald-400"></i>
             <div>
-                <h1 class="font-bold text-lg leading-tight">Firebase Data Retainer (V22)</h1>
+                <h1 class="font-bold text-lg leading-tight">Firebase Data Editor (V25)</h1>
                 <p id="authStatus" class="text-[10px] text-indigo-200">กำลังเชื่อมต่อ...</p>
             </div>
         </div>
@@ -451,16 +506,18 @@
             <option value="users_config">⚙️ ผู้ดูแลระบบ (users_config)</option>
             <option value="officials">👥 บุคลากร (officials)</option>
             <option value="score_logs">⭐ ประวัติคะแนน (score_logs)</option>
-            <option value="requests_appeals">📝 คำร้องอุทธรณ์ (requests_appeals)</option>
+            <!-- แก้ไข Value ให้ชี้ไปที่ requests ตามที่ระบบหลักใช้งาน -->
+            <option value="requests">📝 คำร้องอุทธรณ์ (requests)</option>
         </select>
         
         <button onclick="clearOldData()" class="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100"><i class="fa-solid fa-trash-can"></i> ล้างข้อมูลเก่าก่อน</button>
-        
+        <button onclick="fetchDataFromFirebase()" class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold border border-blue-200 hover:bg-blue-100"><i class="fa-solid fa-rotate"></i> โหลดข้อมูลมาแก้ไข</button>
+
         <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
-        <button onclick="triggerExcelUpload()" class="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-lg text-xs font-bold border border-emerald-300 hover:bg-emerald-200"><i class="fa-solid fa-file-excel"></i> อัปโหลดไฟล์ Excel</button>
+        <button onclick="triggerExcelUpload()" class="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-lg text-xs font-bold border border-emerald-300 hover:bg-emerald-200 ml-4"><i class="fa-solid fa-file-excel"></i> นำเข้าไฟล์ Excel ใหม่</button>
 
         <div class="flex-grow"></div>
-        <button onclick="saveToFirebase()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md"><i class="fa-solid fa-cloud-arrow-up"></i> บันทึกขึ้น Firebase</button>
+        <button id="saveBtn" style="display:none;" onclick="saveToFirebase()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md"><i class="fa-solid fa-cloud-arrow-up"></i> บันทึกขึ้น Firebase</button>
     </div>
 
     <main class="flex-grow overflow-auto bg-slate-100 custom-scroll relative" id="tableWrapper">
@@ -474,6 +531,5 @@
         <span id="recordCount">จำนวน: 0 แถว</span>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>
