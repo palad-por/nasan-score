@@ -1,7 +1,7 @@
 {
   "name": "DOPA NASAN Score",
   "short_name": "DOPA Score",
-  "start_url": "/",
+  "start_url": "../index.html",
   "display": "standalone",
   "background_color": "#082558",
   "theme_color": "#082558",
