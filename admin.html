@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ระบบจัดการ DOPA NASAN Score</title>
+    
+    <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="DOPA_NASAN_Score_App_Icons/favicon-48.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="DOPA_NASAN_Score_App_Icons/apple-touch-icon.png">
+    <link rel="manifest" href="DOPA_NASAN_Score_App_Icons/manifest.webmanifest">
+    <meta name="theme-color" content="#1e293b">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -34,7 +42,6 @@
         <p class="text-indigo-800 font-bold" id="loading-text">กำลังโหลด...</p>
     </div>
 
-    <!-- Login -->
     <div id="loginScreen" class="login-modal">
         <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center mx-4">
             <div class="text-indigo-600 text-5xl mb-4"><i class="fa-solid fa-shield-halved"></i></div>
@@ -51,7 +58,6 @@
         </div>
     </div>
 
-    <!-- App Main -->
     <div id="app" class="flex-col h-screen hidden">
         <header class="glass-header text-white shadow-lg flex-none px-4 py-3 md:px-6 md:py-4 flex justify-between items-center z-20">
             <div class="flex items-center gap-3">
@@ -96,7 +102,6 @@
                 </div>
             </aside>
 
-            <!-- Main Content -->
             <main class="flex-grow p-4 overflow-y-auto bg-slate-100 custom-scroll relative">
 
                 <!-- Admin View (Table) -->
@@ -155,7 +160,6 @@
     </div>
 
 
-    <!-- ================= MODALS ================= -->
 
     <!-- 1. Score Modal (Admin) -->
     <div id="scoreModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
@@ -221,12 +225,13 @@
 
     <!-- 2. Edit / Delete / History Modal -->
     <div id="histModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
-        <div class="bg-white w-full h-full md:h-[85vh] md:max-w-5xl md:rounded-2xl flex flex-col shadow-2xl">
+        <div class="bg-white w-full h-full md:h-[85vh] md:max-w-4xl md:rounded-2xl flex flex-col shadow-2xl">
             <div class="p-4 border-b bg-slate-800 text-white md:rounded-t-2xl flex justify-between flex-none"><h3 class="font-bold" id="histTitle">ประวัติคะแนน</h3><button onclick="closeModal('histModal')" class="p-2 hover:bg-slate-700 rounded-full w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-times text-xl"></i></button></div>
             <div class="flex-grow overflow-auto p-4 custom-scroll relative bg-slate-50">
                 <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
-                    <table class="w-full text-left min-w-[600px]">
-                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr><th class="p-4 w-28 text-center">วันที่</th><th class="p-4">รายละเอียดกิจกรรม</th><th class="p-4 text-center w-24">คะแนน</th><th class="p-4 text-center w-32">จัดการ/หลักฐาน</th></tr></thead>
+                    <table class="w-full text-left min-w-[500px]">
+                        <!-- เอาคอลัมน์ขวาสุดออกตามที่ร้องขอ -->
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr><th class="p-4 w-28 text-center">วันที่</th><th class="p-4">รายละเอียดกิจกรรม</th><th class="p-4 text-center w-24">คะแนน</th></tr></thead>
                         <tbody id="histBody" class="divide-y divide-slate-100 text-sm"></tbody>
                     </table>
                 </div>
@@ -367,7 +372,6 @@
 
     <div id="modal-settings" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl"><h3 class="font-bold mb-5 text-xl">เปลี่ยนรหัสผ่านส่วนตัว</h3><input type="password" id="oldPass" class="w-full p-3 border rounded-xl text-sm mb-4 outline-none focus:border-slate-800" placeholder="รหัสเดิม"><input type="password" id="newPass" class="w-full p-3 border rounded-xl text-sm mb-6 outline-none focus:border-slate-800" placeholder="รหัสใหม่"><div class="flex gap-3"><button onclick="closeModal('modal-settings')" class="flex-1 py-3 border rounded-xl text-sm font-bold text-slate-600">ยกเลิก</button><button onclick="changePass()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl text-sm font-bold shadow-lg">บันทึกใหม่</button></div></div></div>
 
-    <!-- Script Logic (Firebase Integrated) -->
     <script>
         // =========================================================================
         // ตั้งค่า Firebase Configuration
@@ -543,9 +547,10 @@
                 .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error'); });
         }
 
-        // --- FILTERS (Admin) ---
+        // --- STREAMING_CHUNK:FILTERS (Admin) Sorting Fix ---
         function initFilters() {
-            const subs = [...new Set(allData.map(i=>i.subdistrict).filter(Boolean))].sort();
+            // เรียงตำบลตาม ก-ฮ
+            const subs = [...new Set(allData.map(i=>i.subdistrict).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
             const subOpts = '<option value="">ทุกตำบล</option>' + subs.map(s=>`<option value="${s}">${s}</option>`).join('');
             document.getElementById('filterSub').innerHTML = subOpts;
             
@@ -563,17 +568,23 @@
         function filterVillages() {
             const s = document.getElementById('filterSub').value;
             const vSel = document.getElementById('filterVil');
-            if(!s) vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>';
-            else {
-                const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.rawVillage).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
-                vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>' + vs.map(v=>`<option>${v}</option>`).join('');
-            }
+            if(!s) { vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>'; filter(); return; }
+            
+            // เรียงหมู่บ้านตามเลขหมู่
+            const vMap = new Map();
+            allData.filter(d => d.subdistrict === s && d.village).forEach(d => {
+                let mooNum = parseInt(String(d.moo || d.village.match(/\d+/)?.[0] || 0));
+                vMap.set(d.village, mooNum);
+            });
+            const vs = Array.from(vMap.keys()).sort((a,b) => vMap.get(a) - vMap.get(b));
+            
+            vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>' + vs.map(v=>`<option>${v}</option>`).join('');
             filter();
         }
 
         function filter() {
             const s = document.getElementById('filterSub').value, v = document.getElementById('filterVil').value, t = document.getElementById('search').value.toLowerCase();
-            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.rawVillage===v) && d.fullName.toLowerCase().includes(t));
+            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.village===v) && d.fullName.toLowerCase().includes(t));
             const tb = document.getElementById('tableBody'); tb.innerHTML = '';
             document.getElementById('listCount').innerText = res.length + ' คน';
             
@@ -601,19 +612,29 @@
             });
         }
 
-        // --- TARGET SELECTION (Shared logic for Score & Reset) ---
+        // --- STREAMING_CHUNK:TARGET SELECTION Sorting Fix ---
         function updBaseVil() {
             const s = document.getElementById('baseSub').value;
             const vSel = document.getElementById('baseVil');
             if(!s) { vSel.innerHTML='<option value="">- เลือกหมู่บ้าน -</option>'; return; }
-            const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.rawVillage).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
+            const vMap = new Map();
+            allData.filter(d => d.subdistrict === s && d.village).forEach(d => {
+                let mooNum = parseInt(String(d.moo || d.village.match(/\d+/)?.[0] || 0));
+                vMap.set(d.village, mooNum);
+            });
+            const vs = Array.from(vMap.keys()).sort((a,b) => vMap.get(a) - vMap.get(b));
             vSel.innerHTML='<option value="">- เลือกหมู่บ้าน -</option>' + vs.map(v=>`<option value="${v}">${v}</option>`).join('');
         }
         function updResetTargetBaseVil() {
             const s = document.getElementById('resetTargetBaseSub').value;
             const vSel = document.getElementById('resetTargetBaseVil');
             if(!s) { vSel.innerHTML='<option value="">- เลือกหมู่บ้าน -</option>'; return; }
-            const vs = [...new Set(allData.filter(d=>d.subdistrict===s).map(d=>d.rawVillage).filter(Boolean))].sort((a,b)=>parseInt(a.match(/\d+/)||0)-parseInt(b.match(/\d+/)||0));
+            const vMap = new Map();
+            allData.filter(d => d.subdistrict === s && d.village).forEach(d => {
+                let mooNum = parseInt(String(d.moo || d.village.match(/\d+/)?.[0] || 0));
+                vMap.set(d.village, mooNum);
+            });
+            const vs = Array.from(vMap.keys()).sort((a,b) => vMap.get(a) - vMap.get(b));
             vSel.innerHTML='<option value="">- เลือกหมู่บ้าน -</option>' + vs.map(v=>`<option value="${v}">${v}</option>`).join('');
         }
 
@@ -640,17 +661,28 @@
             }
 
             if (mode === 'multi_individual' || mode.includes('except')) {
-                items = pool.map(o => ({ id: o.idCard, label: o.fullName, sub: `${o.position} ต.${o.subdistrict}` }));
+                // V25 Fix: เพิ่มหมู่ที่เข้าไปในการแสดงผล
+                items = pool.map(o => ({ id: o.idCard, label: o.fullName, sub: `${o.position} ต.${o.subdistrict} ม.${o.moo || '-'}`, subdistrict: o.subdistrict, moo: o.moo }));
             } else if (mode === 'multi_village') {
                 const vMap = new Map();
-                pool.forEach(o => vMap.set(`${o.subdistrict}|${o.rawVillage}`, `${o.village} (ต.${o.subdistrict})`));
-                for (let [k, v] of vMap) items.push({ id: k, label: v, sub: '' });
+                pool.forEach(o => vMap.set(`${o.subdistrict}|${o.rawVillage}`, { label: `${o.village} (ต.${o.subdistrict})`, subdistrict: o.subdistrict, moo: o.moo }));
+                for (let [k, v] of vMap) items.push({ id: k, label: v.label, sub: '', subdistrict: v.subdistrict, moo: v.moo });
             } else if (mode === 'multi_tambon') {
                 const sSet = new Set(pool.map(o => o.subdistrict));
-                sSet.forEach(s => items.push({ id: s, label: `ตำบล${s}`, sub: '' }));
+                sSet.forEach(s => items.push({ id: s, label: `ตำบล${s}`, sub: '', subdistrict: s, moo: 0 }));
             } else if (mode === 'all') {
                 showCheck = false;
             }
+
+            // V25 Fix: เรียงลำดับ ตำบล -> หมู่บ้าน -> ชื่อ (ใช้ตรรกะเดียวกับ index.html)
+            items.sort((a, b) => {
+                if (a.subdistrict !== b.subdistrict) return (a.subdistrict || '').localeCompare(b.subdistrict || '', 'th');
+                let mooA = parseInt(a.moo || 0);
+                let mooB = parseInt(b.moo || 0);
+                if (mooA !== mooB) return mooA - mooB;
+                return (a.label || '').localeCompare(b.label || '', 'th');
+            });
+
             return { items: items.filter(i => i.label.toLowerCase().includes(txt) || i.sub.toLowerCase().includes(txt)), showBase, showCheck };
         }
 
@@ -703,7 +735,98 @@
             }
         }
 
-        // --- SCORING ADMIN (Firebase) ---
+        // --- STREAMING_CHUNK:SCORING ADMIN & DISTRIBUTION LOGIC RESTORED ---
+        
+        async function getScoresMapObj() {
+            const logsSnap = await db.collection(`${basePath}/score_logs`).get();
+            let map = {};
+            logsSnap.forEach(doc => {
+                let l = doc.data();
+                let id = l.idCard;
+                if (!map[id]) { map[id] = {}; CRITERIA_LIST.forEach(c => map[id][c.id] = 0); }
+                let cat = l.categoryId;
+                let sc = Number(l.score) || 0;
+                if (l.type === 'negative' || l.scoreType === 'negative') sc = -Math.abs(sc);
+                else sc = Math.abs(sc);
+                if (map[id][cat] !== undefined) map[id][cat] += sc;
+            });
+            return map;
+        }
+
+        // ฟังก์ชันกระจายคะแนน
+        function calculateDistribution(targetId, requestedCatId, scoreToAdd, type, currentScoresMap) {
+            let pScores = currentScoresMap[targetId];
+            if (!pScores) { pScores = {}; CRITERIA_LIST.forEach(c => pScores[c.id] = 0); }
+
+            let remaining = Math.abs(scoreToAdd);
+            let results = [];
+
+            if (type === 'negative' || type === 'NEGATIVE') {
+                // หักจากหมวดที่ร้องขอก่อน
+                let reqCur = pScores[requestedCatId] || 0;
+                if (reqCur > 0) {
+                    let deduct = Math.min(remaining, reqCur);
+                    results.push({ catId: requestedCatId, score: deduct });
+                    remaining -= deduct;
+                    pScores[requestedCatId] -= deduct;
+                }
+                // ถ้ายังเหลือ ให้ไปหักจากหมวดอื่น
+                if (remaining > 0) {
+                    for (let i = 0; i < CRITERIA_LIST.length; i++) {
+                        let cat = CRITERIA_LIST[i].id;
+                        if (cat === requestedCatId) continue;
+                        let cCur = pScores[cat] || 0;
+                        if (cCur > 0) {
+                            let deduct = Math.min(remaining, cCur);
+                            results.push({ catId: cat, score: deduct });
+                            remaining -= deduct;
+                            pScores[cat] -= deduct;
+                            if (remaining <= 0) break;
+                        }
+                    }
+                }
+                // ถ้ายังเหลืออีก (หักจนหมดตัว) บังคับหักหมวดเดิมไปเลย
+                if (remaining > 0) {
+                    results.push({ catId: requestedCatId, score: remaining });
+                    pScores[requestedCatId] -= remaining;
+                }
+            } else {
+                // บวกคะแนนเข้าหมวดที่ร้องขอก่อน (เช็กเพดาน)
+                let reqMax = CRITERIA[requestedCatId] ? CRITERIA[requestedCatId].max : 999;
+                let reqCur = pScores[requestedCatId] || 0;
+                let availReq = reqMax - reqCur;
+                if (availReq > 0) {
+                    let allocate = Math.min(remaining, availReq);
+                    results.push({ catId: requestedCatId, score: allocate });
+                    remaining -= allocate;
+                    pScores[requestedCatId] += allocate;
+                }
+                // ถ้ายังเหลือ ให้กระจายไปหมวดอื่นที่ยังไม่เต็มเพดาน
+                if (remaining > 0) {
+                    for (let i = 0; i < CRITERIA_LIST.length; i++) {
+                        let cat = CRITERIA_LIST[i].id;
+                        if (cat === requestedCatId) continue;
+                        let cMax = CRITERIA[cat].max;
+                        let cCur = pScores[cat] || 0;
+                        let avail = cMax - cCur;
+                        if (avail > 0) {
+                            let allocate = Math.min(remaining, avail);
+                            results.push({ catId: cat, score: allocate });
+                            remaining -= allocate;
+                            pScores[cat] += allocate;
+                            if (remaining <= 0) break;
+                        }
+                    }
+                }
+                // ถ้ายังเหลืออีก (เต็มทุกหมวด) บังคับยัดลงหมวดเดิม
+                if (remaining > 0) {
+                    results.push({ catId: requestedCatId, score: remaining });
+                    pScores[requestedCatId] += remaining;
+                }
+            }
+            return results;
+        }
+
         function openScoreModal() {
             openModal('scoreModal');
             globalSelections.clear();
@@ -747,18 +870,23 @@
 
             let targets = [];
             if (mode === 'multi_individual') targets = allData.filter(o => sels.includes(o.idCard));
-            else if (mode === 'multi_village') targets = allData.filter(o => sels.includes(o.subdistrict + '|' + o.rawVillage));
+            else if (mode === 'multi_village') targets = allData.filter(o => sels.includes(o.subdistrict + '|' + o.village));
             else if (mode === 'multi_tambon') targets = allData.filter(o => sels.includes(o.subdistrict));
             else if (mode === 'all') targets = allData;
             else if (mode === 'all_except') targets = allData.filter(o => !sels.includes(o.idCard));
             else if (mode === 'tambon_except') targets = allData.filter(o => o.subdistrict === document.getElementById('baseSub').value && !sels.includes(o.idCard));
-            else if (mode === 'village_except') targets = allData.filter(o => o.subdistrict === document.getElementById('baseSub').value && o.rawVillage === document.getElementById('baseVil').value && !sels.includes(o.idCard));
+            else if (mode === 'village_except') targets = allData.filter(o => o.subdistrict === document.getElementById('baseSub').value && o.village === document.getElementById('baseVil').value && !sels.includes(o.idCard));
 
             if(!targets.length) return Swal.fire('เตือน','ไม่พบเป้าหมาย','warning');
 
             setLoad(true, "กำลังบันทึกคะแนน... (และอัปโหลดไฟล์)");
             
             try {
+                // โหลดคะแนนปัจจุบันเพื่อเช็กเพดาน (Breakdowns)
+                const currentScoresMap = await getScoresMapObj();
+                let updates = {};
+                targets.forEach(t => updates[t.idCard] = t.totalScore || 0);
+
                 for (let act of actRows) {
                     if(!act.cat || !act.name || !act.score) throw new Error('กรอกข้อมูลกิจกรรมให้ครบทุกช่อง');
                     
@@ -770,36 +898,41 @@
                         proofUrl = await ref.getDownloadURL();
                     }
 
-                    // สร้าง Batch เพื่ออัปเดตหลายรายการพร้อมกัน
                     const batch = db.batch();
                     
                     for (let p of targets) {
-                        let sc = Math.abs(parseFloat(act.score));
-                        let finalScore = act.type === 'negative' ? -sc : sc;
+                        // กระจายคะแนน
+                        let distList = calculateDistribution(p.idCard, act.cat, Number(act.score), act.type, currentScoresMap);
+                        let totalActScoreForThisPerson = 0;
                         
-                        // 1. เพิ่มลง Log
-                        const logRef = db.collection(`${basePath}/score_logs`).doc();
-                        batch.set(logRef, {
-                            idCard: p.idCard,
-                            fullName: p.fullName,
-                            categoryId: act.cat,
-                            activityName: act.name,
-                            activityDetail: '',
-                            score: sc,
-                            type: act.type,
-                            recordedBy: curUser.name,
-                            proofUrl: proofUrl,
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                            dateStr: act.date
-                        });
+                        for (let dist of distList) {
+                            let sc = Math.abs(dist.score);
+                            let finalScore = act.type === 'negative' ? -sc : sc;
+                            totalActScoreForThisPerson += finalScore;
 
-                        // 2. อัปเดตคะแนนรวม (อ่านค่าเดิมและบวกเพิ่ม)
+                            const logRef = db.collection(`${basePath}/score_logs`).doc();
+                            batch.set(logRef, {
+                                idCard: p.idCard,
+                                fullName: p.fullName,
+                                categoryId: dist.catId, // หมวดที่กระจายแล้ว
+                                activityName: act.name,
+                                activityDetail: '',
+                                score: sc,
+                                type: act.type,
+                                recordedBy: curUser.name,
+                                proofUrl: proofUrl,
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                dateStr: act.date
+                            });
+                        }
+
+                        // อัปเดตคะแนนรวม
+                        updates[p.idCard] += totalActScoreForThisPerson;
                         const offRef = db.collection(`${basePath}/officials`).doc(p.docId || p.idCard);
                         batch.update(offRef, {
-                            totalScore: (p.totalScore || 0) + finalScore
+                            totalScore: updates[p.idCard]
                         });
-                        // อัปเดตข้อมูลในหน่วยความจำชั่วคราวเผื่อมีกิจกรรมถัดไป
-                        p.totalScore = (p.totalScore || 0) + finalScore; 
+                        p.totalScore = updates[p.idCard]; 
                     }
                     await batch.commit();
                 }
@@ -814,12 +947,11 @@
             }
         }
 
-        // --- EDIT HISTORY & EXPORT (Firebase) ---
+        // --- STREAMING_CHUNK:EDIT HISTORY & EXPORT (Firebase) ---
         function viewUserHistory() {
             manageHistory(curUser.username, curUser.name);
         }
 
-        // ฟังก์ชันจัดฟอร์แมตวันที่เป็น DD/MM/YYYY (พ.ศ.)
         function formatThaiDate(dateStr) {
             if (!dateStr) return "-";
             let parts = dateStr.split(/[-/]/);
@@ -833,7 +965,6 @@
             return dateStr;
         }
         
-        // ฟังก์ชันแปลงวันที่สำหรับการเรียงลำดับ (มากไปน้อย)
         function parseDateForSort(dateStr) {
              if (!dateStr) return 0;
              let parts = dateStr.split(/[-/]/);
@@ -851,7 +982,7 @@
             document.getElementById('histTitle').innerText = `ประวัติ: ${name}`;
             openModal('histModal'); 
             const tb = document.getElementById('histBody');
-            tb.innerHTML='<tr><td colspan="4" class="text-center p-8"><i class="fa-solid fa-spinner fa-spin text-indigo-500 text-2xl"></i></td></tr>';
+            tb.innerHTML='<tr><td colspan="3" class="text-center p-8"><i class="fa-solid fa-spinner fa-spin text-indigo-500 text-2xl"></i></td></tr>';
             
             try {
                 const reqSnap = await db.collection(`${basePath}/requests`).where('officialId', '==', idCard).where('type', '==', 'APPEAL').get();
@@ -864,12 +995,11 @@
                 const logsSnap = await db.collection(`${basePath}/score_logs`).where('idCard', '==', idCard).get();
                 tb.innerHTML = '';
                 
-                if(logsSnap.empty) { tb.innerHTML='<tr><td colspan="4" class="text-center p-6 text-slate-400">ไม่มีประวัติ</td></tr>'; return; }
+                if(logsSnap.empty) { tb.innerHTML='<tr><td colspan="3" class="text-center p-6 text-slate-400">ไม่มีประวัติ</td></tr>'; return; }
                 
                 let logsArr = [];
                 logsSnap.docs.forEach(doc => logsArr.push({id: doc.id, ...doc.data()}));
                 
-                // จัดกลุ่มคะแนนเหมือนหน้าแดชบอร์ด (เอา Breakdowns กลับมาให้ในหน้าแอดมิน)
                 let grouped = {};
                 let order = [];
                 
@@ -878,7 +1008,7 @@
                     let sortTime = parseDateForSort(dateKey);
                     let key = dateKey + '_' + l.activityName;
                     let rawSc = Number(l.score) || 0;
-                    let actualScore = l.type === 'negative' ? -Math.abs(rawSc) : Math.abs(rawSc);
+                    let actualScore = (l.type === 'negative' || l.scoreType === 'negative') ? -Math.abs(rawSc) : Math.abs(rawSc);
                     let catName = CRITERIA[l.categoryId] ? CRITERIA[l.categoryId].name : l.categoryId;
                     
                     if (!grouped[key]) {
@@ -890,8 +1020,8 @@
                             activityName: l.activityName, 
                             activityDetail: l.activityDetail || '',
                             rawScore: actualScore, 
-                            type: l.type,
-                            recordedBy: l.recordedBy,
+                            type: l.type || l.scoreType,
+                            recordedBy: l.recordedBy || l.adminName,
                             proof: l.proofUrl || l.ProofLink || '',
                             breakdowns: [{ name: catName, score: actualScore }] // เก็บป้ายคะแนนย่อย
                         };
@@ -905,43 +1035,35 @@
                 });
 
                 let finalHistory = order.map(k => grouped[k]);
-                finalHistory.sort((a, b) => b.sortTime - a.sortTime); // ล่าสุดอยู่บน
+                finalHistory.sort((a, b) => b.sortTime - a.sortTime); 
                 
                 finalHistory.forEach(l => {
-                    let logId = l.ids[0]; // ใช้ id ตัวแรกเป็นตัวแทน
+                    let logId = l.ids[0]; 
                     let dateDisplay = formatThaiDate(l.dateStr);
                     let isNegative = l.rawScore < 0;
                     let scoreDisplay = (isNegative ? '' : '+') + l.rawScore;
                     let scoreHtml = `<span class="${!isNegative ? 'text-green-600' : 'text-red-600'}">${scoreDisplay}</span>`;
                     
-                    // สร้างป้ายคะแนนย่อย (Breakdowns) ที่ถูกรวมกันไป
+                    // ป้าย Breakdowns
                     let breakdownHtml = l.breakdowns.map(b => 
                         `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] mr-1 mt-1 border border-indigo-100 inline-block">${b.name} (${b.score > 0 ? '+' : ''}${b.score})</span>`
                     ).join('');
                     
                     let proofLink = l.proof ? l.proof : '';
-                    let proofBtn = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-100 whitespace-nowrap inline-flex items-center w-full justify-center mt-2"><i class="fa-solid fa-paperclip mr-1"></i> ดูไฟล์หลักฐาน</a>` : '<span class="text-slate-300 block text-center w-full mt-2 text-[10px]">-</span>';
-                    let proofBtnDesktop = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-100 whitespace-nowrap inline-flex items-center w-full justify-center mb-2"><i class="fa-solid fa-paperclip mr-1"></i> ดูไฟล์</a>` : '<span class="text-slate-300 block text-center mb-2">-</span>';
+                    let proofBtn = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-100 whitespace-nowrap inline-flex items-center w-full md:w-auto justify-center mt-2 md:mt-0 md:mr-2"><i class="fa-solid fa-paperclip mr-1"></i> ดูไฟล์หลักฐาน</a>` : '';
                     
-                    let actionDesktop = proofBtnDesktop;
-                    let actionMobile = proofBtn;
+                    let actionBtns = proofBtn;
                     
                     if(curUser.role==='user' && isNegative) {
                         if (appealedLogIds.has(logId)) {
-                            let apBtn = `<div class="mt-2 text-[10px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg font-bold w-full text-center border border-slate-200">ยื่นอุทธรณ์แล้ว</div>`;
-                            actionDesktop += apBtn; actionMobile += apBtn;
+                            actionBtns += `<div class="mt-2 md:mt-0 text-[10px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg font-bold inline-block border border-slate-200">ยื่นอุทธรณ์แล้ว</div>`;
                         } else {
-                            let apBtn = `<button onclick="openAppeal('${l.primaryCatId}', '${l.activityName}', ${l.rawScore}, '${l.ids.join(',')}')" class="mt-2 text-[10px] bg-orange-500 text-white px-3 py-1.5 rounded-lg font-bold w-full shadow-sm hover:bg-orange-600">ยื่นอุทธรณ์</button>`;
-                            actionDesktop += apBtn; actionMobile += apBtn;
+                            actionBtns += `<button onclick="openAppeal('${l.primaryCatId}', '${l.activityName}', ${l.rawScore}, '${l.ids.join(',')}')" class="mt-2 md:mt-0 text-[10px] bg-orange-500 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm hover:bg-orange-600 inline-block">ยื่นอุทธรณ์</button>`;
                         }
                     } else if (curUser.role === 'district') {
                         let idsParam = l.ids.join(',');
-                        // เอากลับมาทั้งปุ่ม "แก้ไข" และ "ลบ"
-                        let admBtns = `<div class="flex gap-2 mt-2 justify-center w-full">
-                            <button onclick="openEditLog('${logId}', '${idCard}', '${l.primaryCatId}', '${l.activityName}', '${l.activityDetail}', ${l.rawScore})" class="bg-amber-100 text-amber-700 p-2 rounded-lg hover:bg-amber-200 flex-1 flex justify-center"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                            <button onclick="deleteLogGroup('${idsParam}', '${idCard}')" class="bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200 flex-1 flex justify-center"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                        </div>`;
-                        actionDesktop += admBtns; actionMobile += admBtns;
+                        actionBtns += `<button onclick="openEditLog('${logId}', '${idCard}', '${l.primaryCatId}', '${l.activityName}', '${l.activityDetail}', ${l.rawScore})" class="mt-2 md:mt-0 mr-2 bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-amber-100 inline-flex items-center"><i class="fa-solid fa-pen mr-1"></i> แก้ไข</button>`;
+                        actionBtns += `<button onclick="deleteLogGroup('${idsParam}', '${idCard}')" class="mt-2 md:mt-0 bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-red-100 inline-flex items-center"><i class="fa-solid fa-trash mr-1"></i> ลบ</button>`;
                     }
 
                     tb.innerHTML += `<tr class="border-b border-slate-50 hover:bg-slate-50 transition">
@@ -951,12 +1073,10 @@
                             <div class="mb-1.5">${breakdownHtml}</div>
                             <div class="text-xs text-slate-600 mt-1 whitespace-pre-wrap">${l.activityDetail}</div>
                             <div class="text-[10px] text-slate-400 mt-2"><i class="fa-solid fa-user-pen"></i> ผู้บันทึก: ${l.recordedBy || '-'}</div>
-                            <!-- ปุ่ม Action และหลักฐาน บนมือถือจะมาอยู่ใต้ชื่อกิจกรรม -->
-                            <div class="mt-3 block md:hidden w-full border-t border-slate-100 pt-2">${actionMobile}</div>
+                            <!-- ย้ายปุ่มทั้งหมดมาไว้ใต้ชื่อกิจกรรม -->
+                            <div class="mt-3 w-full border-t border-slate-100 pt-2 flex flex-col md:flex-row md:items-center">${actionBtns}</div>
                         </td>
                         <td class="p-3 md:p-4 text-center font-bold text-lg md:text-xl align-top pt-4 md:pt-5">${scoreHtml}</td>
-                        <!-- คอลัมน์จัดการ ซ่อนบนมือถือ -->
-                        <td class="p-4 text-center align-top pt-5 hidden md:table-cell">${actionDesktop}</td>
                     </tr>`;
                 });
             } catch (err) {
@@ -969,7 +1089,7 @@
             let newTotal = 0;
             logsSnap.forEach(doc => {
                 let d = doc.data();
-                if (d.type === 'negative') newTotal -= Math.abs(d.score);
+                if (d.type === 'negative' || d.scoreType === 'negative') newTotal -= Math.abs(d.score);
                 else newTotal += Math.abs(d.score);
             });
             await db.collection(`${basePath}/officials`).doc(idCard).update({ totalScore: newTotal });
@@ -997,7 +1117,7 @@
         }
         
         function openEditLog(logId, idCard, catId, actName, actDetail, score) {
-            document.getElementById('editLogIndex').value = logId; // ใช้เก็บ Doc ID แทน Index
+            document.getElementById('editLogIndex').value = logId; 
             document.getElementById('editLogIdCard').value = idCard;
             
             let opts = ''; criteria.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
@@ -1049,7 +1169,7 @@
                         let cat = String(l.categoryId);
                         let actName = String(l.activityName);
                         let score = Number(l.score) || 0;
-                        if(l.type === 'negative') score = -Math.abs(score);
+                        if(l.type === 'negative' || l.scoreType === 'negative') score = -Math.abs(score);
                         else score = Math.abs(score);
                         
                         if(!userScores[cat]) userScores[cat] = 0;
@@ -1086,7 +1206,7 @@
             setLoad(false);
         }
 
-        // --- REQUESTS & APPEALS (USER & ADMIN) ---
+        // --- STREAMING_CHUNK:REQUESTS & APPEALS (USER & ADMIN) ---
         function getCriteriaOptions(selectedId='') {
             let opts = '';
             criteria.forEach(c => { opts += `<option value="${c.id}" ${c.id===selectedId?'selected':''}>${c.name}</option>`; });
@@ -1129,12 +1249,12 @@
             
             setLoad(true, "กำลังส่งข้อมูลเข้าสู่ระบบ...");
             try {
-                let fileUrl = reqLink; // ใช้ลิงก์เป็นค่าเริ่มต้นถ้ามี
+                let fileUrl = reqLink; 
                 if (file) {
                     const ext = file.name.split('.').pop();
                     const ref = storage.ref(`evidence/${curUser.username}/${Date.now()}_document.${ext}`);
                     await ref.put(file);
-                    fileUrl = await ref.getDownloadURL(); // ถ้ามีไฟล์ จะทับลิงก์ไปเลย
+                    fileUrl = await ref.getDownloadURL(); 
                 }
 
                 await db.collection(`${basePath}/requests`).add({
@@ -1163,13 +1283,10 @@
                 const reqsSnap = await db.collection(`${basePath}/requests`).orderBy('timestamp', 'desc').get();
                 let reqs = reqsSnap.docs.map(d => ({ docId: d.id, ...d.data() }));
 
-                // ตัวกรองตาม Role (อำเภอ/ตำบล)
                 if (curUser.role === 'tambon') {
-                    // ตำบลเห็นเฉพาะคนในตำบลตัวเอง และเป็น Pending ของตำบล
                     const myTambonIds = allData.filter(o => o.subdistrict === curUser.filter).map(o => o.idCard);
                     reqs = reqs.filter(r => myTambonIds.includes(r.officialId) && r.statTam === 'Pending');
                 } else if (curUser.role === 'district') {
-                    // อำเภอเห็นเฉพาะที่ส่งมาจากตำบล (Forwarded) และรออำเภอ (Pending)
                     reqs = reqs.filter(r => r.statTam === 'Forwarded' && r.statDist === 'Pending');
                 }
 
@@ -1179,7 +1296,6 @@
                 reqs.forEach(r => {
                     const off = allData.find(x => x.idCard === r.officialId) || {};
                     
-                    // ปรับปรุงการตรวจสอบและการดึงค่าวันที่
                     let dateStr = "-";
                     if (r.timestamp) {
                          if (typeof r.timestamp.toDate === 'function') {
@@ -1306,7 +1422,6 @@
             }
         }
 
-        // --- เพิ่มฟังก์ชันจัดการอุทธรณ์กลับ ---
         async function approveAction(reqDocId, role, action, score, idCard='', origCatId='', origActName='', origActDetail='', type='', refLogIds='') {
             let finalScore = score;
             let finalCat = origCatId;
@@ -1331,6 +1446,8 @@
                 const reqRef = db.collection(`${basePath}/requests`).doc(reqDocId);
                 const reqSnap = await reqRef.get();
                 let reqData = reqSnap.data();
+                
+                const currentScoresMap = await getScoresMapObj();
 
                 if (type === 'APPEAL') {
                     if (action === 'ConfirmDeduction') {
@@ -1342,13 +1459,10 @@
                         if (role === 'tambon') await reqRef.update({ statTam: 'Approved', statDist: 'Auto-Approved' });
                         else await reqRef.update({ statDist: 'Approved' });
 
-                        // ลบ log ก้อนเก่าทิ้ง
                         if (refLogIds) {
                             const ids = refLogIds.split(',');
                             const batch = db.batch();
-                            ids.forEach(id => {
-                                batch.delete(db.collection(`${basePath}/score_logs`).doc(id));
-                            });
+                            ids.forEach(id => { batch.delete(db.collection(`${basePath}/score_logs`).doc(id)); });
                             await batch.commit();
                         }
 
@@ -1359,31 +1473,41 @@
                                 let logType = parseFloat(finalScore) >= 0 ? 'positive' : 'negative';
                                 let actTitle = finalActName.includes('(อุทธรณ์)') ? finalActName : finalActName + ' (อุทธรณ์)';
                                 
-                                await db.collection(`${basePath}/score_logs`).add({
-                                    idCard: idCard, fullName: person.fullName, categoryId: finalCat,
-                                    activityName: actTitle, activityDetail: finalActDetail, score: val,
-                                    type: logType, recordedBy: curUser.name, proofUrl: reqData.fileUrl || '',
-                                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                                    dateStr: new Date().toLocaleDateString('th-TH')
-                                });
+                                let distList = calculateDistribution(idCard, finalCat, val, logType, currentScoresMap);
+                                const batch = db.batch();
+                                for (let dist of distList) {
+                                    const logRef = db.collection(`${basePath}/score_logs`).doc();
+                                    batch.set(logRef, {
+                                        idCard: idCard, fullName: person.fullName, categoryId: dist.catId,
+                                        activityName: actTitle, activityDetail: finalActDetail, score: Math.abs(dist.score),
+                                        type: logType, recordedBy: curUser.name, proofUrl: reqData.fileUrl || '',
+                                        timestamp: firebase.firestore.FieldValue.serverTimestamp(), dateStr: new Date().toLocaleDateString('th-TH')
+                                    });
+                                }
+                                await batch.commit();
                             }
                         }
                         await recalculateScore(idCard);
                     }
                 } else {
-                    // REQUEST
                     if (action === 'Approved') {
                         if (role === 'tambon') await reqRef.update({ statTam: 'Approved', statDist: 'Auto-Approved', approvedScore: finalScore });
                         else await reqRef.update({ categoryId: finalCat, activityName: finalActName, detail: finalActDetail, statDist: 'Approved', approvedScore: finalScore });
                         
                         const person = allData.find(x => x.idCard === idCard);
                         if (person) {
-                            await db.collection(`${basePath}/score_logs`).add({
-                                idCard: idCard, fullName: person.fullName, categoryId: finalCat,
-                                activityName: finalActName, activityDetail: finalActDetail, score: Math.abs(parseFloat(finalScore)),
-                                type: 'positive', recordedBy: curUser.name, proofUrl: reqData.fileUrl || '',
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp(), dateStr: new Date().toLocaleDateString('th-TH')
-                            });
+                            let distList = calculateDistribution(idCard, finalCat, Math.abs(parseFloat(finalScore)), 'positive', currentScoresMap);
+                            const batch = db.batch();
+                            for (let dist of distList) {
+                                const logRef = db.collection(`${basePath}/score_logs`).doc();
+                                batch.set(logRef, {
+                                    idCard: idCard, fullName: person.fullName, categoryId: dist.catId,
+                                    activityName: finalActName, activityDetail: finalActDetail, score: Math.abs(dist.score),
+                                    type: 'positive', recordedBy: curUser.name, proofUrl: reqData.fileUrl || '',
+                                    timestamp: firebase.firestore.FieldValue.serverTimestamp(), dateStr: new Date().toLocaleDateString('th-TH')
+                                });
+                            }
+                            await batch.commit();
                             await recalculateScore(idCard);
                         }
                     } else if (action === 'Forward') {
@@ -1417,7 +1541,6 @@
                     let r = doc.data();
                     let badge = r.type === 'APPEAL' ? `<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold">อุทธรณ์</span>` : `<span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-bold">ขอคะแนน</span>`;
                     
-                    // ปรับปรุงการตรวจสอบและการดึงค่าวันที่
                     let dateStr = "-";
                     if (r.timestamp) {
                          if (typeof r.timestamp.toDate === 'function') {
@@ -1500,12 +1623,10 @@
                     setLoad(true, "กำลังล้างข้อมูล...");
                     try {
                         for(let p of targets) {
-                            // ลบ log ของคนนี้
                             const lSnap = await db.collection(`${basePath}/score_logs`).where('idCard', '==', p.idCard).get();
                             const batch = db.batch();
                             lSnap.forEach(doc => batch.delete(doc.ref));
                             await batch.commit();
-                            // รีเซ็ตเป็น 0
                             await db.collection(`${basePath}/officials`).doc(p.docId || p.idCard).update({ totalScore: 0 });
                         }
                         initAdmin(); closeModal('modal-reset'); Swal.fire('สำเร็จ', `ล้างข้อมูล ${targets.length} รายการสำเร็จ`, 'success'); 
@@ -1516,7 +1637,6 @@
             });
         }
 
-        // ฟังก์ชันแก้ไขรายชื่อบุคคล
         function openEditOff(idCard) {
             const person = allData.find(x => x.idCard === idCard);
             if(!person) return;
@@ -1553,7 +1673,7 @@
             document.getElementById('editOffId').value = person.idCard;
             document.getElementById('editOffName').value = person.fullName;
             document.getElementById('editOffPos').value = person.position;
-            document.getElementById('editOffMoo').value = person.moo;
+            document.getElementById('editOffMoo').value = person.moo || '';
             document.getElementById('editOffVil').value = person.rawVillage;
             document.getElementById('editOffSub').value = person.subdistrict;
             
