@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ระบบจัดการ DOPA NASAN Score</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- DOPA NASAN Score icons -->
     <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="DOPA_NASAN_Score_App_Icons/favicon-48.png">
     <link rel="apple-touch-icon" sizes="180x180" href="DOPA_NASAN_Score_App_Icons/apple-touch-icon.png">
     <link rel="manifest" href="DOPA_NASAN_Score_App_Icons/manifest.webmanifest">
     <meta name="theme-color" content="#1e293b">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -375,7 +375,6 @@
 
     <div id="modal-settings" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl"><h3 class="font-bold mb-5 text-xl">เปลี่ยนรหัสผ่านส่วนตัว</h3><input type="password" id="oldPass" class="w-full p-3 border rounded-xl text-sm mb-4 outline-none focus:border-slate-800" placeholder="รหัสเดิม"><input type="password" id="newPass" class="w-full p-3 border rounded-xl text-sm mb-6 outline-none focus:border-slate-800" placeholder="รหัสใหม่"><div class="flex gap-3"><button onclick="closeModal('modal-settings')" class="flex-1 py-3 border rounded-xl text-sm font-bold text-slate-600">ยกเลิก</button><button onclick="changePass()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl text-sm font-bold shadow-lg">บันทึกใหม่</button></div></div></div>
 
-    <!-- Script Logic (Firebase Integrated) -->
     <script>
         // =========================================================================
         // ตั้งค่า Firebase Configuration
@@ -622,7 +621,7 @@
             });
         }
 
-        // --- TARGET SELECTION ---
+        // --- STREAMING_CHUNK:TARGET SELECTION Sorting Fix ---
         function updBaseVil() {
             const s = document.getElementById('baseSub').value;
             const vSel = document.getElementById('baseVil');
@@ -667,14 +666,14 @@
                 showBase = true;
                 const bs = document.getElementById(baseSubId).value;
                 const bv = document.getElementById(baseVilId).value;
-                pool = (bs && bv) ? pool.filter(x => x.subdistrict === bs && x.rawVillage === bv) : [];
+                pool = (bs && bv) ? pool.filter(x => x.subdistrict === bs && x.village === bv) : [];
             }
 
             if (mode === 'multi_individual' || mode.includes('except')) {
                 items = pool.map(o => ({ id: o.idCard, label: o.fullName, sub: `${o.position} ต.${o.subdistrict} ม.${o.moo || '-'}`, subdistrict: o.subdistrict, moo: o.moo }));
             } else if (mode === 'multi_village') {
                 const vMap = new Map();
-                pool.forEach(o => vMap.set(`${o.subdistrict}|${o.rawVillage}`, { label: `${o.village} (ต.${o.subdistrict})`, subdistrict: o.subdistrict, moo: o.moo }));
+                pool.forEach(o => vMap.set(`${o.subdistrict}|${o.village}`, { label: `${o.village} (ต.${o.subdistrict})`, subdistrict: o.subdistrict, moo: o.moo }));
                 for (let [k, v] of vMap) items.push({ id: k, label: v.label, sub: '', subdistrict: v.subdistrict, moo: v.moo });
             } else if (mode === 'multi_tambon') {
                 const sSet = new Set(pool.map(o => o.subdistrict));
@@ -743,7 +742,7 @@
             }
         }
 
-        // --- SCORING ADMIN & DISTRIBUTION LOGIC ---
+        // --- STREAMING_CHUNK:SCORING ADMIN & DISTRIBUTION LOGIC RESTORED ---
         
         async function getScoresMapObj() {
             const logsSnap = await db.collection(`${basePath}/score_logs`).get();
@@ -761,6 +760,7 @@
             return map;
         }
 
+        // ฟังก์ชันกระจายคะแนน
         function calculateDistribution(targetId, requestedCatId, scoreToAdd, type, currentScoresMap) {
             let pScores = currentScoresMap[targetId];
             if (!pScores) { pScores = {}; CRITERIA_LIST.forEach(c => pScores[c.id] = 0); }
@@ -769,6 +769,7 @@
             let results = [];
 
             if (type === 'negative' || type === 'NEGATIVE') {
+                // หักจากหมวดที่ร้องขอก่อน
                 let reqCur = pScores[requestedCatId] || 0;
                 if (reqCur > 0) {
                     let deduct = Math.min(remaining, reqCur);
@@ -776,6 +777,7 @@
                     remaining -= deduct;
                     pScores[requestedCatId] -= deduct;
                 }
+                // ถ้ายังเหลือ ให้ไปหักจากหมวดอื่น
                 if (remaining > 0) {
                     for (let i = 0; i < CRITERIA_LIST.length; i++) {
                         let cat = CRITERIA_LIST[i].id;
@@ -790,11 +792,13 @@
                         }
                     }
                 }
+                // ถ้ายังเหลืออีก (หักจนหมดตัว) บังคับหักหมวดเดิมไปเลย
                 if (remaining > 0) {
                     results.push({ catId: requestedCatId, score: remaining });
                     pScores[requestedCatId] -= remaining;
                 }
             } else {
+                // บวกคะแนนเข้าหมวดที่ร้องขอก่อน (เช็กเพดาน)
                 let reqMax = CRITERIA[requestedCatId] ? CRITERIA[requestedCatId].max : 999;
                 let reqCur = pScores[requestedCatId] || 0;
                 let availReq = reqMax - reqCur;
@@ -804,6 +808,7 @@
                     remaining -= allocate;
                     pScores[requestedCatId] += allocate;
                 }
+                // ถ้ายังเหลือ ให้กระจายไปหมวดอื่นที่ยังไม่เต็มเพดาน
                 if (remaining > 0) {
                     for (let i = 0; i < CRITERIA_LIST.length; i++) {
                         let cat = CRITERIA_LIST[i].id;
@@ -820,6 +825,7 @@
                         }
                     }
                 }
+                // ถ้ายังเหลืออีก (เต็มทุกหมวด) บังคับยัดลงหมวดเดิม
                 if (remaining > 0) {
                     results.push({ catId: requestedCatId, score: remaining });
                     pScores[requestedCatId] += remaining;
@@ -871,12 +877,12 @@
 
             let targets = [];
             if (mode === 'multi_individual') targets = allData.filter(o => sels.includes(o.idCard));
-            else if (mode === 'multi_village') targets = allData.filter(o => sels.includes(o.subdistrict + '|' + o.village));
+            else if (mode === 'multi_village') targets = allData.filter(o => sels.includes(o.subdistrict + '|' + o.village)); // ใช้ o.village
             else if (mode === 'multi_tambon') targets = allData.filter(o => sels.includes(o.subdistrict));
             else if (mode === 'all') targets = allData;
             else if (mode === 'all_except') targets = allData.filter(o => !sels.includes(o.idCard));
             else if (mode === 'tambon_except') targets = allData.filter(o => o.subdistrict === document.getElementById('baseSub').value && !sels.includes(o.idCard));
-            else if (mode === 'village_except') targets = allData.filter(o => o.subdistrict === document.getElementById('baseSub').value && o.village === document.getElementById('baseVil').value && !sels.includes(o.idCard));
+            else if (mode === 'village_except') targets = allData.filter(o => o.subdistrict === document.getElementById('baseSub').value && o.village === document.getElementById('baseVil').value && !sels.includes(o.idCard)); // ใช้ o.village
 
             if(!targets.length) return Swal.fire('เตือน','ไม่พบเป้าหมาย','warning');
 
@@ -945,7 +951,7 @@
             }
         }
 
-        // --- EDIT HISTORY & EXPORT (Firebase) ---
+        // --- STREAMING_CHUNK:EDIT HISTORY & EXPORT (Firebase) ---
         function viewUserHistory() {
             manageHistory(curUser.username, curUser.name);
         }
@@ -1607,12 +1613,12 @@
             
             let targets = [];
             if (mode === 'multi_individual') targets = allData.filter(o => sels.includes(o.idCard));
-            else if (mode === 'multi_village') targets = allData.filter(o => sels.includes(o.subdistrict + '|' + o.rawVillage));
+            else if (mode === 'multi_village') targets = allData.filter(o => sels.includes(o.subdistrict + '|' + o.village));
             else if (mode === 'multi_tambon') targets = allData.filter(o => sels.includes(o.subdistrict));
             else if (mode === 'all') targets = allData;
             else if (mode === 'all_except') targets = allData.filter(o => !sels.includes(o.idCard));
             else if (mode === 'tambon_except') targets = allData.filter(o => o.subdistrict === document.getElementById('resetTargetBaseSub').value && !sels.includes(o.idCard));
-            else if (mode === 'village_except') targets = allData.filter(o => o.subdistrict === document.getElementById('resetTargetBaseSub').value && o.rawVillage === document.getElementById('resetTargetBaseVil').value && !sels.includes(o.idCard));
+            else if (mode === 'village_except') targets = allData.filter(o => o.subdistrict === document.getElementById('resetTargetBaseSub').value && o.village === document.getElementById('resetTargetBaseVil').value && !sels.includes(o.idCard));
 
             Swal.fire({title:'ยืนยันล้างข้อมูลเป็น 0 ?', text:'ประวัติและคะแนนจะถูกลบ ไม่สามารถกู้คืนได้', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc2626'}).then(async r => {
                 if(r.isConfirmed){
