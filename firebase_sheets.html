@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Sheets V25 - Editable Data Retainer</title>
+    <title>Firebase Sheets V26 - Searchable Data Retainer</title>
     
     <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -105,7 +106,35 @@
 
         window.switchTable = function() {
             currentTable = document.getElementById('tableSelector').value;
+            // เคลียร์ช่องค้นหาเมื่อเปลี่ยนตาราง
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = '';
             fetchDataFromFirebase();
+        }
+
+        // ฟังก์ชันสำหรับเพิ่มแถวใหม่แบบแมนนวล
+        window.addNewRow = function() {
+            const schema = schemas[currentTable];
+            let newRow = { _isDirty: true }; // กำหนดให้เป็นสถานะแก้ไข (สีเหลือง)
+            
+            // สร้าง properties ตาม schema เริ่มต้นด้วยค่าว่าง
+            schema.cols.forEach(c => {
+                newRow[c.key] = c.isNumber ? 0 : '';
+            });
+
+            // ดันแถวใหม่ไปไว้ข้างหน้าสุด (เพื่อให้เห็นชัดเจน)
+            tableData.unshift(newRow);
+            
+            // แสดงปุ่มบันทึก
+            isEditingMode = true; 
+            document.getElementById('saveBtn').style.display = 'block'; 
+            document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-save"></i> บันทึกการแก้ไข (Update)';
+            
+            // ล้างช่องค้นหาเพื่อให้เห็นแถวใหม่แน่นอน
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = '';
+
+            renderTable();
         }
 
         window.fetchDataFromFirebase = async function() {
@@ -120,7 +149,6 @@
                 querySnapshot.forEach((document) => {
                     let data = document.data();
                     
-                    // V25 Fix: สำหรับตาราง requests พยายามดึงคีย์ต่างๆ ที่อาจจะเพี้ยนจาก Excel หรือ App
                     if (currentTable === 'requests') {
                         data.ReqID = data.ReqID || data.reqId || document.id;
                         data.Type = data.Type || data.type || '';
@@ -146,34 +174,66 @@
             const thead = document.getElementById('tHead');
             const tbody = document.getElementById('tBody');
             
+            // ดึงคำค้นหา
+            const searchInput = document.getElementById('searchInput');
+            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const searchTerms = searchTerm.split(' ').filter(t => t !== '');
+            
             let thHtml = '<tr><th class="w-12">No.</th>';
             schema.cols.forEach(c => { thHtml += `<th class="p-2">${c.label}</th>`; });
             thHtml += `<th class="w-16">ลบ</th></tr>`;
             thead.innerHTML = thHtml;
 
             let tbHtml = '';
-            let displayCount = Math.min(tableData.length, 100); // โชว์แค่ 100 เพื่อไม่ให้ค้าง
+            let filteredIndices = [];
             
-            for(let rowIndex = 0; rowIndex < displayCount; rowIndex++) {
-                let row = tableData[rowIndex];
+            // กรองข้อมูลตามคำค้นหา
+            for (let i = 0; i < tableData.length; i++) {
+                let row = tableData[i];
+                let isMatch = true;
+                
+                if (searchTerms.length > 0) {
+                    for (let term of searchTerms) {
+                        let termMatch = false;
+                        // ค้นหาเฉพาะในคอลัมน์ที่มีใน Schema
+                        for (let col of schema.cols) {
+                            if (row[col.key] !== undefined && String(row[col.key]).toLowerCase().includes(term)) {
+                                termMatch = true;
+                                break;
+                            }
+                        }
+                        if (!termMatch) {
+                            isMatch = false;
+                            break;
+                        }
+                    }
+                }
+                
+                if (isMatch) filteredIndices.push(i);
+            }
+
+            // แสดงผลทั้งหมดที่กรองเจอ (ปลดล็อก 100 แถว)
+            for(let i = 0; i < filteredIndices.length; i++) {
+                let originalIndex = filteredIndices[i];
+                let row = tableData[originalIndex];
                 let trClass = row._isDirty ? 'bg-amber-50' : '';
-                tbHtml += `<tr class="${trClass} transition-colors duration-300" id="tr-${rowIndex}"><td class="row-num">${rowIndex + 1}</td>`;
+                tbHtml += `<tr class="${trClass} transition-colors duration-300" id="tr-${originalIndex}"><td class="row-num">${i + 1}</td>`;
                 
                 schema.cols.forEach(c => {
                     let val = row[c.key] !== undefined ? row[c.key] : '';
                     let inputType = c.isNumber ? 'number' : 'text';
-                    tbHtml += `<td class="p-1"><input type="${inputType}" step="any" class="sheet-input" value="${val}" onchange="updateCell(${rowIndex}, '${c.key}', this.value)"></td>`;
+                    tbHtml += `<td class="p-1"><input type="${inputType}" step="any" class="sheet-input" value="${val}" onchange="updateCell(${originalIndex}, '${c.key}', this.value)"></td>`;
                 });
                 
-                tbHtml += `<td class="text-center bg-slate-50"><button onclick="deleteRow(${rowIndex})" class="text-red-400 hover:text-red-600 px-3 py-2"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+                tbHtml += `<td class="text-center bg-slate-50"><button onclick="deleteRow(${originalIndex})" class="text-red-400 hover:text-red-600 px-3 py-2"><i class="fa-solid fa-trash"></i></button></td></tr>`;
             }
 
-            if(tableData.length > 100) {
-                tbHtml += `<tr><td colspan="${schema.cols.length + 2}" class="text-center py-4 text-slate-500 font-bold bg-slate-50">... มีข้อมูลอีก ${tableData.length - 100} แถวซ่อนอยู่ ...</td></tr>`;
+            if(filteredIndices.length === 0) {
+                tbHtml += `<tr><td colspan="${schema.cols.length + 2}" class="text-center py-8 text-slate-500 font-bold bg-slate-50">ไม่พบข้อมูลที่ค้นหา</td></tr>`;
             }
 
             tbody.innerHTML = tbHtml;
-            document.getElementById('recordCount').innerText = `จำนวนทั้งหมด: ${tableData.length} แถว`;
+            document.getElementById('recordCount').innerText = `แสดงผล: ${filteredIndices.length} / ทั้งหมด: ${tableData.length} แถว`;
         }
 
         window.updateCell = function(rowIndex, key, value) { 
@@ -189,7 +249,7 @@
                     if(r.isConfirmed) {
                         await deleteDoc(doc(db, `${basePath}/${currentTable}`, row._firebaseDocId));
                         tableData.splice(index, 1); 
-                        renderTable();
+                        renderTable(); // รีเฟรชตารางและตัวกรอง
                         Swal.fire({icon: 'success', title: 'ลบแล้ว', timer: 1000, showConfirmButton: false});
                     }
                 });
@@ -368,6 +428,10 @@
                     }
                 });
 
+                // เคลียร์คำค้นหาหลังจากอัปโหลดไฟล์ใหม่
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) searchInput.value = '';
+                
                 renderTable();
                 Swal.fire('สำเร็จ', `อ่านข้อมูลจากชีต "${sheetMatch}" ได้ ${added} รายการ\nกรุณากด "บันทึกไฟล์ใหม่" ด้านขวาบน`, 'success');
                 document.getElementById('excelFileInput').value = '';
@@ -488,13 +552,13 @@
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
-<body>
+<body class="flex flex-col h-screen overflow-hidden">
 
     <header class="bg-indigo-700 text-white p-3 flex justify-between items-center flex-none shadow-md">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-database text-2xl text-emerald-400"></i>
             <div>
-                <h1 class="font-bold text-lg leading-tight">Firebase Data Editor (V25)</h1>
+                <h1 class="font-bold text-lg leading-tight">Firebase Data Editor (V26)</h1>
                 <p id="authStatus" class="text-[10px] text-indigo-200">กำลังเชื่อมต่อ...</p>
             </div>
         </div>
@@ -506,7 +570,6 @@
             <option value="users_config">⚙️ ผู้ดูแลระบบ (users_config)</option>
             <option value="officials">👥 บุคลากร (officials)</option>
             <option value="score_logs">⭐ ประวัติคะแนน (score_logs)</option>
-            <!-- แก้ไข Value ให้ชี้ไปที่ requests ตามที่ระบบหลักใช้งาน -->
             <option value="requests">📝 คำร้องอุทธรณ์ (requests)</option>
         </select>
         
@@ -514,10 +577,27 @@
         <button onclick="fetchDataFromFirebase()" class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold border border-blue-200 hover:bg-blue-100"><i class="fa-solid fa-rotate"></i> โหลดข้อมูลมาแก้ไข</button>
 
         <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
-        <button onclick="triggerExcelUpload()" class="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-lg text-xs font-bold border border-emerald-300 hover:bg-emerald-200 ml-4"><i class="fa-solid fa-file-excel"></i> นำเข้าไฟล์ Excel ใหม่</button>
+        <button onclick="triggerExcelUpload()" class="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-lg text-xs font-bold border border-emerald-300 hover:bg-emerald-200"><i class="fa-solid fa-file-excel"></i> นำเข้าไฟล์ Excel ใหม่</button>
+
+        <!-- ปุ่มเพิ่มแถวใหม่ -->
+        <button onclick="addNewRow()" class="bg-purple-100 text-purple-800 px-3 py-2 rounded-lg text-xs font-bold border border-purple-300 hover:bg-purple-200 ml-2 shadow-sm"><i class="fa-solid fa-plus"></i> เพิ่มแถวใหม่</button>
+
+        <!-- กล่องค้นหา (Search Box) -->
+        <div class="relative w-64 ml-2 border-l pl-4 hidden md:block">
+            <i class="fa-solid fa-search absolute left-7 top-2.5 text-slate-400 text-sm"></i>
+            <input type="text" id="searchInput" oninput="renderTable()" class="w-full pl-8 p-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-slate-50" placeholder="พิมพ์คำค้นหา (ค้นได้ทุกคอลัมน์)...">
+        </div>
 
         <div class="flex-grow"></div>
         <button id="saveBtn" style="display:none;" onclick="saveToFirebase()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md"><i class="fa-solid fa-cloud-arrow-up"></i> บันทึกขึ้น Firebase</button>
+    </div>
+    
+    <!-- กล่องค้นหาสำหรับมือถือ -->
+    <div class="p-2 bg-slate-50 border-b border-slate-200 md:hidden flex-none">
+         <div class="relative w-full">
+            <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+            <input type="text" id="searchInputMobile" oninput="document.getElementById('searchInput').value=this.value; renderTable();" class="w-full pl-8 p-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-white shadow-sm" placeholder="พิมพ์คำค้นหา (ตำบล, ชื่อ, หมู่)...">
+        </div>
     </div>
 
     <main class="flex-grow overflow-auto bg-slate-100 custom-scroll relative" id="tableWrapper">
