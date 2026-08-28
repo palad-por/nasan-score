@@ -3,7 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Storage Manager - DOPA NASAN Score</title>
+    <title>Storage Manager V2 - DOPA NASAN Score</title>
+    
+    <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="DOPA_NASAN_Score_App_Icons/favicon-48.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="DOPA_NASAN_Score_App_Icons/apple-touch-icon.png">
+    <link rel="manifest" href="DOPA_NASAN_Score_App_Icons/manifest.webmanifest">
+    <meta name="theme-color" content="#4f46e5">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -37,6 +45,8 @@
         // กำหนดโฟลเดอร์หลักที่จะเข้ามาดู (โฟลเดอร์ที่เก็บหลักฐานทั้งหมด)
         const ROOT_PATH = "evidence"; 
         let currentPath = ROOT_PATH;
+        let currentItems = []; // เก็บ item ทั้งหมดในหน้านี้ (รวม Folder และ File)
+        let selectedItems = new Set(); // เก็บ fullPath ของรายการที่ถูกติ๊กเลือก
 
         window.onload = function() {
             auth.signInAnonymously().then(() => {
@@ -49,63 +59,71 @@
 
         async function loadFiles(path) {
             currentPath = path;
+            selectedItems.clear(); // เคลียร์การเลือกทุกครั้งที่เปลี่ยนหน้า
+            updateSelectionUI();
             renderBreadcrumb(path);
             
             const container = document.getElementById('fileContainer');
-            container.innerHTML = '<div class="text-center p-10"><i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-500"></i><p class="mt-2 text-slate-500">กำลังดึงข้อมูล...</p></div>';
+            container.innerHTML = '<div class="text-center p-10 col-span-full"><i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-500"></i><p class="mt-2 text-slate-500 font-bold">กำลังดึงข้อมูล...</p></div>';
             
             const listRef = storage.ref(path);
             
             try {
                 const res = await listRef.listAll();
                 container.innerHTML = '';
+                currentItems = [];
                 
                 // หากโฟลเดอร์ว่างเปล่า
                 if (res.prefixes.length === 0 && res.items.length === 0) {
-                    container.innerHTML = '<div class="text-center p-10 text-slate-400 col-span-full">โฟลเดอร์นี้ว่างเปล่า</div>';
+                    container.innerHTML = '<div class="text-center p-10 text-slate-400 font-bold col-span-full bg-white rounded-2xl border border-slate-200">โฟลเดอร์นี้ว่างเปล่า</div>';
                     return;
                 }
 
-                // สร้างปุ่มโฟลเดอร์
+                // --- 1. โฟลเดอร์ ---
                 res.prefixes.forEach((folderRef) => {
+                    let fullPath = folderRef.fullPath;
+                    currentItems.push({ type: 'folder', path: fullPath, ref: folderRef });
+                    
                     container.innerHTML += `
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:border-indigo-400 cursor-pointer transition" onclick="loadFiles('${folderRef.fullPath}')">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center text-lg"><i class="fa-solid fa-folder"></i></div>
-                                <span class="font-bold text-slate-700">${folderRef.name}</span>
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:border-indigo-400 transition relative group">
+                            <div class="absolute top-3 right-3 z-10">
+                                <input type="checkbox" value="${fullPath}" onchange="toggleSelect(this, 'folder')" class="w-5 h-5 accent-indigo-600 cursor-pointer">
                             </div>
-                            <i class="fa-solid fa-chevron-right text-slate-300"></i>
+                            <div class="flex items-center gap-3 cursor-pointer w-full h-full" onclick="loadFiles('${fullPath}')">
+                                <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center text-xl flex-none"><i class="fa-solid fa-folder"></i></div>
+                                <span class="font-bold text-slate-700 truncate block w-full pr-8" title="${folderRef.name}">${folderRef.name}</span>
+                            </div>
                         </div>
                     `;
                 });
 
-                // สร้างปุ่มไฟล์
+                // --- 2. ไฟล์ ---
                 res.items.forEach((itemRef) => {
-                    // ไอคอนไฟล์
+                    let fullPath = itemRef.fullPath;
+                    currentItems.push({ type: 'file', path: fullPath, ref: itemRef });
+                    
                     let icon = '<i class="fa-regular fa-file text-slate-500"></i>';
                     let bg = 'bg-slate-50';
                     let ext = itemRef.name.split('.').pop().toLowerCase();
                     if(['jpg','jpeg','png','gif'].includes(ext)) { icon = '<i class="fa-regular fa-image text-blue-500"></i>'; bg = 'bg-blue-50'; }
                     else if(ext === 'pdf') { icon = '<i class="fa-regular fa-file-pdf text-red-500"></i>'; bg = 'bg-red-50'; }
 
-                    // สร้างกรอบของไฟล์
-                    let fileHTML = `
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
-                            <div class="flex items-start gap-3 mb-3">
-                                <div class="w-10 h-10 flex-none rounded-xl flex items-center justify-center text-lg ${bg}">${icon}</div>
-                                <span class="text-xs font-medium text-slate-600 break-all line-clamp-2" title="${itemRef.name}">${itemRef.name}</span>
+                    container.innerHTML += `
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition relative group">
+                            <div class="absolute top-3 right-3 z-10">
+                                <input type="checkbox" value="${fullPath}" onchange="toggleSelect(this, 'file')" class="w-5 h-5 accent-indigo-600 cursor-pointer">
                             </div>
-                            <div class="flex gap-2 mt-auto">
-                                <button onclick="viewFile('${itemRef.fullPath}')" class="flex-1 bg-indigo-50 text-indigo-600 py-2 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-eye"></i> ดูไฟล์</button>
-                                <button onclick="deleteFile('${itemRef.fullPath}', '${itemRef.name}')" class="flex-none bg-red-50 text-red-600 px-3 py-2 rounded-lg text-[10px] font-bold hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i></button>
+                            <div class="flex items-start gap-3 mb-4 pr-8">
+                                <div class="w-10 h-10 flex-none rounded-xl flex items-center justify-center text-xl ${bg}">${icon}</div>
+                                <span class="text-xs font-medium text-slate-600 break-all line-clamp-2 mt-1" title="${itemRef.name}">${itemRef.name}</span>
                             </div>
+                            <button onclick="viewFile('${fullPath}')" class="w-full bg-slate-50 text-slate-600 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-100 transition border border-slate-200"><i class="fa-solid fa-eye mr-1"></i> ดูไฟล์</button>
                         </div>
                     `;
-                    container.innerHTML += fileHTML;
                 });
 
             } catch (error) {
-                container.innerHTML = `<div class="text-center p-10 text-red-500 col-span-full"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>โหลดข้อมูลไม่สำเร็จ (สิทธิ์การเข้าถึงอาจไม่ถูกต้อง)<br><span class="text-xs text-slate-400">${error.message}</span></div>`;
+                container.innerHTML = `<div class="text-center p-10 text-red-500 col-span-full bg-white rounded-2xl"><i class="fa-solid fa-triangle-exclamation text-3xl mb-3"></i><br><b>โหลดข้อมูลไม่สำเร็จ</b><br><span class="text-xs text-slate-400">${error.message}</span></div>`;
             }
         }
 
@@ -121,7 +139,7 @@
                 if (index === parts.length - 1) {
                     bcHTML += `<span class="text-slate-800 font-bold">${part}</span>`;
                 } else {
-                    bcHTML += `<span class="text-indigo-600 cursor-pointer hover:underline" onclick="loadFiles('${currentBuild}')">${part}</span> <span class="text-slate-400 mx-2">/</span> `;
+                    bcHTML += `<span class="text-indigo-600 cursor-pointer hover:underline font-bold" onclick="loadFiles('${currentBuild}')">${part}</span> <span class="text-slate-400 mx-2">/</span> `;
                 }
             });
             
@@ -137,6 +155,43 @@
             }
         }
 
+        function toggleSelect(checkbox, type) {
+            const path = checkbox.value;
+            if (checkbox.checked) {
+                selectedItems.add(JSON.stringify({ path: path, type: type }));
+            } else {
+                selectedItems.delete(JSON.stringify({ path: path, type: type }));
+            }
+            updateSelectionUI();
+        }
+
+        function toggleSelectAll(checkbox) {
+            const allCheckboxes = document.querySelectorAll('#fileContainer input[type="checkbox"]');
+            allCheckboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+                // กระตุ้นอีเวนต์ change แบบ manual เพื่อให้ฟังก์ชัน toggleSelect ทำงาน
+                const event = new Event('change');
+                cb.dispatchEvent(event);
+            });
+        }
+
+        function updateSelectionUI() {
+            const count = selectedItems.size;
+            const btn = document.getElementById('deleteBtn');
+            const countDisplay = document.getElementById('selCount');
+            const selectAllCb = document.getElementById('selectAllCb');
+            
+            if (count > 0) {
+                btn.style.display = 'inline-flex';
+                countDisplay.innerText = `เลือกแล้ว ${count} รายการ`;
+                btn.innerHTML = `<i class="fa-solid fa-trash-can mr-2"></i> ลบ ${count} รายการ`;
+            } else {
+                btn.style.display = 'none';
+                countDisplay.innerText = '';
+                selectAllCb.checked = false; // เอาติ๊กถูกเลือกทั้งหมดออกถ้าไม่มีอะไรถูกเลือก
+            }
+        }
+
         async function viewFile(fullPath) {
             try {
                 const url = await storage.ref(fullPath).getDownloadURL();
@@ -146,57 +201,118 @@
             }
         }
 
-        function deleteFile(fullPath, fileName) {
-            Swal.fire({
-                title: 'ยืนยันการลบไฟล์?',
-                text: `คุณกำลังจะลบไฟล์ "${fileName}" ถาวร ไม่สามารถกู้คืนได้`,
+        // ฟังก์ชันลบโฟลเดอร์แบบ Recursive (เจาะลึกลบทุกอย่างข้างใน)
+        async function deleteFolderRecursively(folderRef) {
+            const res = await folderRef.listAll();
+            
+            // 1. ลบไฟล์ทั้งหมดในโฟลเดอร์นี้
+            const deletePromises = res.items.map(itemRef => itemRef.delete());
+            await Promise.all(deletePromises);
+            
+            // 2. ดำน้ำลงไปลบโฟลเดอร์ย่อยข้างในต่อ
+            for (const subFolderRef of res.prefixes) {
+                await deleteFolderRecursively(subFolderRef);
+            }
+        }
+
+        async function executeBatchDelete() {
+            if (selectedItems.size === 0) return;
+
+            const itemsArr = Array.from(selectedItems).map(itemStr => JSON.parse(itemStr));
+            
+            const confirmResult = await Swal.fire({
+                title: `ยืนยันการลบ ${itemsArr.length} รายการ?`,
+                html: `<span class="text-red-600 font-bold">ข้อมูลนี้จะถูกลบถาวร ไม่สามารถกู้คืนได้!</span><br><br>หมายเหตุ: หากลบโฟลเดอร์ ไฟล์ทั้งหมดที่อยู่ข้างในจะหายไปทั้งหมด`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
                 cancelButtonColor: '#94a3b8',
-                confirmButtonText: 'ใช่, ลบเลย'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({ title: 'กำลังลบไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                    try {
-                        await storage.ref(fullPath).delete();
-                        Swal.fire('สำเร็จ', 'ลบไฟล์เรียบร้อยแล้ว', 'success');
-                        loadFiles(currentPath); // โหลดใหม่
-                    } catch (error) {
-                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถลบไฟล์ได้: ' + error.message, 'error');
-                    }
-                }
+                confirmButtonText: 'ยืนยันการลบ',
+                cancelButtonText: 'ยกเลิก'
             });
+
+            if (!confirmResult.isConfirmed) return;
+
+            Swal.fire({ 
+                title: 'กำลังดำเนินการลบ...', 
+                html: 'ห้ามปิดหน้าจอเด็ดขาด', 
+                allowOutsideClick: false, 
+                didOpen: () => Swal.showLoading() 
+            });
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const item of itemsArr) {
+                try {
+                    const ref = storage.ref(item.path);
+                    if (item.type === 'file') {
+                        await ref.delete();
+                    } else if (item.type === 'folder') {
+                        await deleteFolderRecursively(ref);
+                    }
+                    successCount++;
+                } catch (error) {
+                    console.error("Error deleting:", item.path, error);
+                    errorCount++;
+                }
+            }
+
+            if (errorCount === 0) {
+                Swal.fire('สำเร็จ', `ลบข้อมูลทั้งหมด ${successCount} รายการเรียบร้อยแล้ว`, 'success');
+            } else {
+                Swal.fire('สำเร็จบางส่วน', `ลบสำเร็จ ${successCount} รายการ, ล้มเหลว ${errorCount} รายการ`, 'warning');
+            }
+
+            document.getElementById('selectAllCb').checked = false; // Reset Select All
+            loadFiles(currentPath); // โหลดหน้าใหม่
         }
     </script>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-indigo-700 text-white p-3 md:p-4 flex justify-between items-center flex-none shadow-md">
+    <header class="bg-indigo-700 text-white p-3 md:p-4 flex justify-between items-center flex-none shadow-md z-20">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-server text-2xl text-indigo-300"></i>
             <div>
-                <h1 class="font-bold text-base md:text-lg leading-tight">Storage Manager</h1>
+                <h1 class="font-bold text-base md:text-lg leading-tight">Storage Manager V2</h1>
                 <p id="authStatus" class="text-[10px] text-indigo-200">กำลังเชื่อมต่อ...</p>
             </div>
         </div>
-        <button onclick="window.location.href='admin.html'" class="bg-indigo-800 hover:bg-indigo-900 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"><i class="fa-solid fa-arrow-left"></i> กลับหน้าระบบ</button>
+        <button onclick="window.location.href='admin.html'" class="bg-indigo-800 hover:bg-indigo-900 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm border border-indigo-600"><i class="fa-solid fa-arrow-left mr-1"></i> กลับระบบหลังบ้าน</button>
     </header>
 
     <!-- Toolbar & Path -->
-    <div class="bg-white border-b border-slate-200 p-3 flex items-center gap-3 flex-none shadow-sm z-10">
-        <button id="upBtn" class="bg-slate-100 text-slate-600 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition hidden items-center gap-1"><i class="fa-solid fa-level-up-alt"></i> ย้อนกลับ</button>
-        <div class="flex-grow text-xs bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 overflow-x-auto whitespace-nowrap custom-scroll" id="breadcrumb">
+    <div class="bg-white border-b border-slate-200 p-3 flex flex-wrap items-center gap-3 flex-none shadow-sm z-10">
+        <button id="upBtn" class="bg-slate-100 text-slate-600 hover:bg-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition hidden items-center gap-1 border border-slate-200"><i class="fa-solid fa-level-up-alt"></i> ย้อนกลับ</button>
+        
+        <div class="flex-grow text-xs bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 overflow-x-auto whitespace-nowrap custom-scroll flex items-center" id="breadcrumb">
             <span class="text-slate-400">Loading...</span>
         </div>
-        <button onclick="loadFiles(currentPath)" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+
+        <button onclick="loadFiles(currentPath)" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2 rounded-xl text-xs font-bold transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-rotate-right"></i> รีเฟรช</button>
+    </div>
+    
+    <!-- Action Bar (Select All / Delete) -->
+    <div class="bg-slate-50 border-b border-slate-200 p-2.5 px-4 flex justify-between items-center flex-none">
+        <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-200 p-1.5 pr-3 rounded-lg transition">
+            <input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this)" class="w-5 h-5 accent-indigo-600 cursor-pointer">
+            <span class="text-sm font-bold text-slate-600">เลือกทั้งหมด</span>
+        </label>
+        
+        <div class="flex items-center gap-3">
+            <span id="selCount" class="text-xs font-bold text-indigo-600"></span>
+            <button id="deleteBtn" onclick="executeBatchDelete()" class="bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-600 transition shadow-md active:scale-95" style="display: none;">
+                <i class="fa-solid fa-trash-can mr-2"></i> ลบ
+            </button>
+        </div>
     </div>
 
     <!-- Main Content Area -->
-    <main class="flex-grow bg-slate-100 p-4 overflow-y-auto custom-scroll">
-        <div class="container mx-auto max-w-5xl">
-            <div id="fileContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <main class="flex-grow bg-slate-100 p-4 md:p-6 overflow-y-auto custom-scroll">
+        <div class="container mx-auto max-w-6xl">
+            <div id="fileContainer" class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 <!-- ไฟล์และโฟลเดอร์จะถูกสร้างที่นี่ -->
             </div>
         </div>
