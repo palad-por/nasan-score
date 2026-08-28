@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ระบบจัดการ DOPA NASAN Score</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- DOPA NASAN Score icons -->
     <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="DOPA_NASAN_Score_App_Icons/favicon-48.png">
     <link rel="apple-touch-icon" sizes="180x180" href="DOPA_NASAN_Score_App_Icons/apple-touch-icon.png">
     <link rel="manifest" href="DOPA_NASAN_Score_App_Icons/manifest.webmanifest">
     <meta name="theme-color" content="#1e293b">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -42,6 +42,7 @@
         <p class="text-indigo-800 font-bold" id="loading-text">กำลังโหลด...</p>
     </div>
 
+    <!-- Login -->
     <div id="loginScreen" class="login-modal">
         <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center mx-4">
             <div class="text-indigo-600 text-5xl mb-4"><i class="fa-solid fa-shield-halved"></i></div>
@@ -58,6 +59,7 @@
         </div>
     </div>
 
+    <!-- App Main -->
     <div id="app" class="flex-col h-screen hidden">
         <header class="glass-header text-white shadow-lg flex-none px-4 py-3 md:px-6 md:py-4 flex justify-between items-center z-20">
             <div class="flex items-center gap-3">
@@ -102,6 +104,7 @@
                 </div>
             </aside>
 
+            <!-- Main Content -->
             <main class="flex-grow p-4 overflow-y-auto bg-slate-100 custom-scroll relative">
 
                 <!-- Admin View (Table) -->
@@ -160,6 +163,7 @@
     </div>
 
 
+    <!-- ================= MODALS ================= -->
 
     <!-- 1. Score Modal (Admin) -->
     <div id="scoreModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
@@ -230,7 +234,6 @@
             <div class="flex-grow overflow-auto p-4 custom-scroll relative bg-slate-50">
                 <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
                     <table class="w-full text-left min-w-[500px]">
-                        <!-- เอาคอลัมน์ขวาสุดออกตามที่ร้องขอ -->
                         <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr><th class="p-4 w-28 text-center">วันที่</th><th class="p-4">รายละเอียดกิจกรรม</th><th class="p-4 text-center w-24">คะแนน</th></tr></thead>
                         <tbody id="histBody" class="divide-y divide-slate-100 text-sm"></tbody>
                     </table>
@@ -372,6 +375,7 @@
 
     <div id="modal-settings" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4"><div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl"><h3 class="font-bold mb-5 text-xl">เปลี่ยนรหัสผ่านส่วนตัว</h3><input type="password" id="oldPass" class="w-full p-3 border rounded-xl text-sm mb-4 outline-none focus:border-slate-800" placeholder="รหัสเดิม"><input type="password" id="newPass" class="w-full p-3 border rounded-xl text-sm mb-6 outline-none focus:border-slate-800" placeholder="รหัสใหม่"><div class="flex gap-3"><button onclick="closeModal('modal-settings')" class="flex-1 py-3 border rounded-xl text-sm font-bold text-slate-600">ยกเลิก</button><button onclick="changePass()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl text-sm font-bold shadow-lg">บันทึกใหม่</button></div></div></div>
 
+    <!-- Script Logic (Firebase Integrated) -->
     <script>
         // =========================================================================
         // ตั้งค่า Firebase Configuration
@@ -443,10 +447,15 @@
                     let storedPass = String(d.password || d.Password || '');
                     
                     if(storedUser === u && storedPass === p) {
+                        let roleStr = String(d.role || d.Role || 'tambon').toLowerCase();
+                        let filterStr = d.filter || d.Filter || '';
+                        let filterArr = filterStr.split(',').map(s => s.trim()).filter(Boolean);
+
                         foundAdmin = { 
                             username: storedUser, 
-                            role: String(d.role || d.Role || 'tambon').toLowerCase(), 
-                            filter: d.filter || d.Filter, 
+                            role: roleStr, 
+                            filter: filterStr,
+                            filterArray: filterArr,
                             name: d.name || d.DisplayName || d.displayName, 
                             docId: doc.id 
                         };
@@ -521,7 +530,11 @@
             getOfficialsFromDB()
                 .then(d => {
                     allData = d;
-                    if(curUser.role === 'tambon') allData = allData.filter(x => x.subdistrict === curUser.filter);
+                    if(curUser.role === 'tambon') {
+                        if(curUser.filterArray && curUser.filterArray.length > 0) {
+                            allData = allData.filter(x => curUser.filterArray.includes(x.subdistrict));
+                        }
+                    }
                     initFilters(); filter(); setLoad(false);
                 })
                 .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error'); });
@@ -547,9 +560,8 @@
                 .catch(err => { setLoad(false); Swal.fire('ระบบขัดข้อง', String(err.message), 'error'); });
         }
 
-        // --- STREAMING_CHUNK:FILTERS (Admin) Sorting Fix ---
+        // --- FILTERS (Admin) ---
         function initFilters() {
-            // เรียงตำบลตาม ก-ฮ
             const subs = [...new Set(allData.map(i=>i.subdistrict).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
             const subOpts = '<option value="">ทุกตำบล</option>' + subs.map(s=>`<option value="${s}">${s}</option>`).join('');
             document.getElementById('filterSub').innerHTML = subOpts;
@@ -559,8 +571,7 @@
             document.getElementById('resetTargetBaseSub').innerHTML = baseSubOpts;
 
             if (curUser.role === 'tambon') {
-                document.getElementById('filterSub').value = curUser.filter;
-                document.getElementById('filterSub').disabled = true;
+                document.getElementById('filterSub').innerHTML = '<option value="">ทุกตำบลที่รับผิดชอบ</option>' + subs.map(s=>`<option value="${s}">${s}</option>`).join('');
                 filterVillages(); 
             }
         }
@@ -570,7 +581,6 @@
             const vSel = document.getElementById('filterVil');
             if(!s) { vSel.innerHTML='<option value="">ทุกหมู่บ้าน</option>'; filter(); return; }
             
-            // เรียงหมู่บ้านตามเลขหมู่
             const vMap = new Map();
             allData.filter(d => d.subdistrict === s && d.village).forEach(d => {
                 let mooNum = parseInt(String(d.moo || d.village.match(/\d+/)?.[0] || 0));
@@ -612,7 +622,7 @@
             });
         }
 
-        // --- STREAMING_CHUNK:TARGET SELECTION Sorting Fix ---
+        // --- TARGET SELECTION ---
         function updBaseVil() {
             const s = document.getElementById('baseSub').value;
             const vSel = document.getElementById('baseVil');
@@ -661,7 +671,6 @@
             }
 
             if (mode === 'multi_individual' || mode.includes('except')) {
-                // V25 Fix: เพิ่มหมู่ที่เข้าไปในการแสดงผล
                 items = pool.map(o => ({ id: o.idCard, label: o.fullName, sub: `${o.position} ต.${o.subdistrict} ม.${o.moo || '-'}`, subdistrict: o.subdistrict, moo: o.moo }));
             } else if (mode === 'multi_village') {
                 const vMap = new Map();
@@ -674,7 +683,6 @@
                 showCheck = false;
             }
 
-            // V25 Fix: เรียงลำดับ ตำบล -> หมู่บ้าน -> ชื่อ (ใช้ตรรกะเดียวกับ index.html)
             items.sort((a, b) => {
                 if (a.subdistrict !== b.subdistrict) return (a.subdistrict || '').localeCompare(b.subdistrict || '', 'th');
                 let mooA = parseInt(a.moo || 0);
@@ -735,7 +743,7 @@
             }
         }
 
-        // --- STREAMING_CHUNK:SCORING ADMIN & DISTRIBUTION LOGIC RESTORED ---
+        // --- SCORING ADMIN & DISTRIBUTION LOGIC ---
         
         async function getScoresMapObj() {
             const logsSnap = await db.collection(`${basePath}/score_logs`).get();
@@ -753,7 +761,6 @@
             return map;
         }
 
-        // ฟังก์ชันกระจายคะแนน
         function calculateDistribution(targetId, requestedCatId, scoreToAdd, type, currentScoresMap) {
             let pScores = currentScoresMap[targetId];
             if (!pScores) { pScores = {}; CRITERIA_LIST.forEach(c => pScores[c.id] = 0); }
@@ -762,7 +769,6 @@
             let results = [];
 
             if (type === 'negative' || type === 'NEGATIVE') {
-                // หักจากหมวดที่ร้องขอก่อน
                 let reqCur = pScores[requestedCatId] || 0;
                 if (reqCur > 0) {
                     let deduct = Math.min(remaining, reqCur);
@@ -770,7 +776,6 @@
                     remaining -= deduct;
                     pScores[requestedCatId] -= deduct;
                 }
-                // ถ้ายังเหลือ ให้ไปหักจากหมวดอื่น
                 if (remaining > 0) {
                     for (let i = 0; i < CRITERIA_LIST.length; i++) {
                         let cat = CRITERIA_LIST[i].id;
@@ -785,13 +790,11 @@
                         }
                     }
                 }
-                // ถ้ายังเหลืออีก (หักจนหมดตัว) บังคับหักหมวดเดิมไปเลย
                 if (remaining > 0) {
                     results.push({ catId: requestedCatId, score: remaining });
                     pScores[requestedCatId] -= remaining;
                 }
             } else {
-                // บวกคะแนนเข้าหมวดที่ร้องขอก่อน (เช็กเพดาน)
                 let reqMax = CRITERIA[requestedCatId] ? CRITERIA[requestedCatId].max : 999;
                 let reqCur = pScores[requestedCatId] || 0;
                 let availReq = reqMax - reqCur;
@@ -801,7 +804,6 @@
                     remaining -= allocate;
                     pScores[requestedCatId] += allocate;
                 }
-                // ถ้ายังเหลือ ให้กระจายไปหมวดอื่นที่ยังไม่เต็มเพดาน
                 if (remaining > 0) {
                     for (let i = 0; i < CRITERIA_LIST.length; i++) {
                         let cat = CRITERIA_LIST[i].id;
@@ -818,7 +820,6 @@
                         }
                     }
                 }
-                // ถ้ายังเหลืออีก (เต็มทุกหมวด) บังคับยัดลงหมวดเดิม
                 if (remaining > 0) {
                     results.push({ catId: requestedCatId, score: remaining });
                     pScores[requestedCatId] += remaining;
@@ -882,7 +883,6 @@
             setLoad(true, "กำลังบันทึกคะแนน... (และอัปโหลดไฟล์)");
             
             try {
-                // โหลดคะแนนปัจจุบันเพื่อเช็กเพดาน (Breakdowns)
                 const currentScoresMap = await getScoresMapObj();
                 let updates = {};
                 targets.forEach(t => updates[t.idCard] = t.totalScore || 0);
@@ -901,7 +901,6 @@
                     const batch = db.batch();
                     
                     for (let p of targets) {
-                        // กระจายคะแนน
                         let distList = calculateDistribution(p.idCard, act.cat, Number(act.score), act.type, currentScoresMap);
                         let totalActScoreForThisPerson = 0;
                         
@@ -914,7 +913,7 @@
                             batch.set(logRef, {
                                 idCard: p.idCard,
                                 fullName: p.fullName,
-                                categoryId: dist.catId, // หมวดที่กระจายแล้ว
+                                categoryId: dist.catId, 
                                 activityName: act.name,
                                 activityDetail: '',
                                 score: sc,
@@ -926,7 +925,6 @@
                             });
                         }
 
-                        // อัปเดตคะแนนรวม
                         updates[p.idCard] += totalActScoreForThisPerson;
                         const offRef = db.collection(`${basePath}/officials`).doc(p.docId || p.idCard);
                         batch.update(offRef, {
@@ -947,7 +945,7 @@
             }
         }
 
-        // --- STREAMING_CHUNK:EDIT HISTORY & EXPORT (Firebase) ---
+        // --- EDIT HISTORY & EXPORT (Firebase) ---
         function viewUserHistory() {
             manageHistory(curUser.username, curUser.name);
         }
@@ -1023,7 +1021,7 @@
                             type: l.type || l.scoreType,
                             recordedBy: l.recordedBy || l.adminName,
                             proof: l.proofUrl || l.ProofLink || '',
-                            breakdowns: [{ name: catName, score: actualScore }] // เก็บป้ายคะแนนย่อย
+                            breakdowns: [{ name: catName, score: actualScore }] 
                         };
                         order.push(key);
                     } else {
@@ -1044,7 +1042,6 @@
                     let scoreDisplay = (isNegative ? '' : '+') + l.rawScore;
                     let scoreHtml = `<span class="${!isNegative ? 'text-green-600' : 'text-red-600'}">${scoreDisplay}</span>`;
                     
-                    // ป้าย Breakdowns
                     let breakdownHtml = l.breakdowns.map(b => 
                         `<span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] mr-1 mt-1 border border-indigo-100 inline-block">${b.name} (${b.score > 0 ? '+' : ''}${b.score})</span>`
                     ).join('');
@@ -1073,7 +1070,6 @@
                             <div class="mb-1.5">${breakdownHtml}</div>
                             <div class="text-xs text-slate-600 mt-1 whitespace-pre-wrap">${l.activityDetail}</div>
                             <div class="text-[10px] text-slate-400 mt-2"><i class="fa-solid fa-user-pen"></i> ผู้บันทึก: ${l.recordedBy || '-'}</div>
-                            <!-- ย้ายปุ่มทั้งหมดมาไว้ใต้ชื่อกิจกรรม -->
                             <div class="mt-3 w-full border-t border-slate-100 pt-2 flex flex-col md:flex-row md:items-center">${actionBtns}</div>
                         </td>
                         <td class="p-3 md:p-4 text-center font-bold text-lg md:text-xl align-top pt-4 md:pt-5">${scoreHtml}</td>
@@ -1206,7 +1202,7 @@
             setLoad(false);
         }
 
-        // --- STREAMING_CHUNK:REQUESTS & APPEALS (USER & ADMIN) ---
+        // --- REQUESTS & APPEALS (USER & ADMIN) ---
         function getCriteriaOptions(selectedId='') {
             let opts = '';
             criteria.forEach(c => { opts += `<option value="${c.id}" ${c.id===selectedId?'selected':''}>${c.name}</option>`; });
@@ -1284,10 +1280,10 @@
                 let reqs = reqsSnap.docs.map(d => ({ docId: d.id, ...d.data() }));
 
                 if (curUser.role === 'tambon') {
-                    const myTambonIds = allData.filter(o => o.subdistrict === curUser.filter).map(o => o.idCard);
+                    const myTambonIds = allData.filter(o => curUser.filterArray.includes(o.subdistrict)).map(o => o.idCard);
                     reqs = reqs.filter(r => myTambonIds.includes(r.officialId) && r.statTam === 'Pending');
-                } else if (curUser.role === 'district') {
-                    reqs = reqs.filter(r => r.statTam === 'Forwarded' && r.statDist === 'Pending');
+                } else if (curUser.role === 'district' || curUser.role === 'district_assistant') {
+                    reqs = reqs.filter(r => r.statDist === 'Pending');
                 }
 
                 con.innerHTML = '';
@@ -1329,7 +1325,7 @@
                                     <button onclick="approveAction('${r.docId}', 'tambon', 'ConfirmDeduction', 0, null, null, null, null, 'APPEAL')" class="bg-red-100 text-red-700 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-200">อุทธรณ์ฟังไม่ขึ้น: ยืนยันการหัก</button>
                                 </div>
                             `;
-                        } else if (curUser.role === 'district') {
+                        } else if (curUser.role === 'district' || curUser.role === 'district_assistant') {
                             actionHtml = `
                                 <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขหมวดคะแนน</label>
@@ -1363,7 +1359,7 @@
                                     <button onclick="approveAction('${r.docId}', 'tambon', 'Forward', 0)" class="col-span-2 bg-blue-100 text-blue-700 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-blue-200 mt-1">ส่งให้อำเภอ (กรณีขอเกิน 2 คะแนน)</button>
                                 </div>
                             `;
-                        } else if (curUser.role === 'district') {
+                        } else if (curUser.role === 'district' || curUser.role === 'district_assistant') {
                             actionHtml = `
                                 <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                                     <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">แก้ไขหมวดคะแนน</label>
@@ -1452,12 +1448,12 @@
                 if (type === 'APPEAL') {
                     if (action === 'ConfirmDeduction') {
                         if (role === 'tambon') await reqRef.update({ statTam: 'Rejected', statDist: 'Rejected' });
-                        else await reqRef.update({ statDist: 'Rejected' });
+                        else await reqRef.update({ statTam: 'Rejected', statDist: 'Rejected' }); // District forces both
                     } else if (action === 'Forward') {
                         await reqRef.update({ statTam: 'Forwarded' });
                     } else if (action === 'RestoreScore' || action === 'EditScore') {
                         if (role === 'tambon') await reqRef.update({ statTam: 'Approved', statDist: 'Auto-Approved' });
-                        else await reqRef.update({ statDist: 'Approved' });
+                        else await reqRef.update({ statTam: 'Auto-Approved', statDist: 'Approved' }); // District forces both
 
                         if (refLogIds) {
                             const ids = refLogIds.split(',');
@@ -1492,7 +1488,7 @@
                 } else {
                     if (action === 'Approved') {
                         if (role === 'tambon') await reqRef.update({ statTam: 'Approved', statDist: 'Auto-Approved', approvedScore: finalScore });
-                        else await reqRef.update({ categoryId: finalCat, activityName: finalActName, detail: finalActDetail, statDist: 'Approved', approvedScore: finalScore });
+                        else await reqRef.update({ categoryId: finalCat, activityName: finalActName, detail: finalActDetail, statTam: 'Auto-Approved', statDist: 'Approved', approvedScore: finalScore });
                         
                         const person = allData.find(x => x.idCard === idCard);
                         if (person) {
@@ -1514,7 +1510,7 @@
                         await reqRef.update({ statTam: 'Forwarded' });
                     } else if (action === 'Rejected') {
                         if (role === 'tambon') await reqRef.update({ statTam: 'Rejected', statDist: 'Rejected' });
-                        else await reqRef.update({ statDist: 'Rejected' });
+                        else await reqRef.update({ statTam: 'Rejected', statDist: 'Rejected' });
                     }
                 }
                 
