@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Sheets V26 - Searchable Data Retainer</title>
+    <title>Firebase Sheets V27 - Editable & Backup</title>
     
     <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
@@ -308,19 +308,20 @@
                     let newObj = {};
                     
                     if (currentTable === 'officials') {
-                        let idKey = Object.keys(row).find(k => k.includes('เลขประจำตัว') || k.includes('ID'));
+                        let idKey = Object.keys(row).find(k => k.includes('เลขประจำตัว') || k.includes('ID') || k.includes('เลข ปชช.'));
                         let nameKey = Object.keys(row).find(k => k.includes('ชื่อ'));
                         
                         if (!idKey || !row[idKey]) return;
                         
                         let idc = String(row[idKey]).replace(/\D/g, '');
                         let fn = String(row[nameKey] || 'ไม่ระบุชื่อ');
-                        let pos = String(row['ตำแหน่ง'] || '-');
-                        let moo = String(row['หมู่ที่'] || '');
-                        let rv = String(row['ชื่อบ้าน'] || '');
-                        let sub = String(row['ตำบล'] || '-');
-                        let vil = (moo && rv) ? `หมู่ที่ ${moo} ${rv}` : '';
-                        let ts = parseFloat(row['คะแนนรวม']) || 0;
+                        let pos = String(row['ตำแหน่ง'] || row['Position'] || '-');
+                        let moo = String(row['หมู่ที่'] || row['หมู่ที่ (เลข)'] || row['Moo'] || '');
+                        let rv = String(row['ชื่อบ้าน'] || row['RawVillage'] || '');
+                        let sub = String(row['ตำบล'] || row['Subdistrict'] || '-');
+                        // หาคอลัมน์หมู่บ้านเต็มเผื่อกรณีโหลด backup กลับมา
+                        let vil = String(row['หมู่บ้านเต็ม'] || row['หมู่บ้าน'] || row['Village'] || ((moo && rv) ? `หมู่ที่ ${moo} ${rv}` : ''));
+                        let ts = parseFloat(row['คะแนนรวม'] || row['TotalScore']) || 0;
 
                         newObj.idCard = idc; newObj.ID_Card = idc;
                         newObj.fullName = fn; newObj.FullName = fn;
@@ -333,10 +334,10 @@
                         added++;
                     } 
                     else if (currentTable === 'score_logs') {
-                        let idKey = Object.keys(row).find(k => k.includes('ID_Card') || k.includes('เลขประจำตัว'));
+                        let idKey = Object.keys(row).find(k => k.includes('ID_Card') || k.includes('เลขประจำตัว') || k.includes('เลข ปชช.'));
                         if (!idKey || !row[idKey]) return;
                         
-                        let dateVal = row['Date'] || row['วันที่'] || row['Timestamp'] || '';
+                        let dateVal = row['วันที่ (Date)'] || row['Date'] || row['วันที่'] || row['Timestamp'] || '';
                         let dStr = '';
                         if (typeof dateVal === 'number') {
                             const dateObj = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
@@ -347,16 +348,16 @@
                             dStr = new Date().toISOString().split('T')[0]; 
                         }
                         
-                        let tStamp = String(row['Timestamp'] || row['Date'] || dStr);
+                        let tStamp = String(row['Timestamp'] || row['วันที่ (Date)'] || row['Date'] || dStr);
                         let idc = String(row[idKey]).replace(/\D/g, '');
                         let fn = String(row['FullName'] || row['ชื่อ-สกุล'] || 'ไม่ระบุชื่อ');
-                        let cat = String(row['Category'] || row['หมวดหมู่'] || '0').trim(); 
-                        let act = String(row['ActivityName'] || row['ชื่อกิจกรรม'] || 'ไม่ระบุกิจกรรม').trim();
+                        let cat = String(row['หมวด'] || row['Category'] || row['หมวดหมู่'] || '0').trim(); 
+                        let act = String(row['กิจกรรม'] || row['ActivityName'] || row['ชื่อกิจกรรม'] || 'ไม่ระบุกิจกรรม').trim();
                         let actd = String(row['ActivityDetail'] || '').trim();
-                        let sc = parseFloat(row['Score'] || row['คะแนน']) || 0;
-                        let ty = String(row['Type'] || row['ประเภท'] || 'positive').trim();
+                        let sc = parseFloat(row['คะแนน'] || row['Score']) || 0;
+                        let ty = String(row['ประเภท (+/-)'] || row['Type'] || row['ประเภท'] || 'positive').trim();
                         let rb = String(row['RecordedBy'] || row['ผู้บันทึก'] || 'System').trim();
-                        let pr = String(row['ProofLink'] || row['หลักฐาน'] || row['proofUrl'] || '').trim();
+                        let pr = String(row['หลักฐาน'] || row['ProofLink'] || row['proofUrl'] || '').trim();
 
                         newObj.dateStr = dStr; newObj.Date = dStr; newObj.date = dStr;
                         newObj.Timestamp = tStamp; newObj.timestamp = tStamp;
@@ -404,9 +405,9 @@
                         let fn = String(row['FullName'] || 'ไม่ระบุชื่อ');
                         let cat = String(row['Category'] || '0');
                         let act = String(row['ActivityName'] || 'ไม่ระบุกิจกรรม');
-                        let reqs = parseFloat(row['RequestedScore']) || 0;
+                        let reqs = parseFloat(row['ReqScore'] || row['RequestedScore']) || 0;
                         let st = String(row['StatusTambon'] || 'Pending');
-                        let sd = String(row['StatusDistrict'] || 'Pending');
+                        let sd = String(row['Status'] || row['StatusDistrict'] || 'Pending');
                         let pr = String(row['ProofLink'] || row['หลักฐาน'] || row['proofUrl'] || '').trim();
 
                         newObj.ReqID = reqId; newObj.reqId = reqId;
@@ -538,6 +539,68 @@
                 Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
             }
         }
+
+        // --- เพิ่มฟังก์ชันดาวน์โหลด Backup Excel ---
+        window.downloadBackup = async function() {
+            Swal.fire({ title: 'กำลังรวบรวมข้อมูลทั้งหมด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            try {
+                // เตรียมสร้าง Workbook
+                const wb = XLSX.utils.book_new();
+                
+                // รายชื่อตารางทั้งหมดที่ต้องการดึง
+                const tableNames = Object.keys(schemas);
+                
+                for (let tableName of tableNames) {
+                    const schema = schemas[tableName];
+                    const querySnapshot = await getDocs(collection(db, `${basePath}/${tableName}`));
+                    
+                    let sheetData = [];
+                    
+                    // ดึงข้อมูลแต่ละตาราง
+                    querySnapshot.forEach((document) => {
+                        let data = document.data();
+                        
+                        // จัดการข้อมูลพิเศษสำหรับตาราง requests
+                        if (tableName === 'requests') {
+                            data.ReqID = data.ReqID || data.reqId || document.id;
+                            data.Type = data.Type || data.type || '';
+                            data.ID_Card = data.ID_Card || data.idCard || data.officialId || '';
+                            data.FullName = data.FullName || data.fullName || '';
+                            data.ActivityName = data.ActivityName || data.activityName || '';
+                            data.RequestedScore = data.RequestedScore || data.reqScore || data.requestedScore || 0;
+                            data.StatusDistrict = data.StatusDistrict || data.statDist || data.statusDistrict || '';
+                        }
+                        
+                        // สร้าง Row object ให้คีย์ตรงกับ label เพื่อแสดงเป็นหัวคอลัมน์ใน Excel
+                        let exportRow = {};
+                        schema.cols.forEach(c => {
+                            exportRow[c.label] = data[c.key] !== undefined ? data[c.key] : '';
+                        });
+                        
+                        sheetData.push(exportRow);
+                    });
+                    
+                    // ตั้งชื่อชีตให้สัมพันธ์กับตาราง
+                    let sheetName = tableName;
+                    if(tableName === 'users_config') sheetName = 'user_config';
+                    if(tableName === 'officials') sheetName = 'bookkon';
+                    if(tableName === 'score_logs') sheetName = 'score_logs';
+                    if(tableName === 'requests') sheetName = 'requests_appeals';
+
+                    // แปลง JSON เป็น Sheet
+                    const ws = XLSX.utils.json_to_sheet(sheetData);
+                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                }
+                
+                // เขียนและดาวน์โหลดไฟล์
+                XLSX.writeFile(wb, "DOPA_NASAN_Full_Backup.xlsx");
+                Swal.close();
+
+            } catch (err) {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดาวน์โหลด Backup ได้: ' + err.message, 'error');
+            }
+        }
     </script>
 
     <style>
@@ -558,11 +621,15 @@
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-database text-2xl text-emerald-400"></i>
             <div>
-                <h1 class="font-bold text-lg leading-tight">Firebase Data Editor (V26)</h1>
+                <h1 class="font-bold text-lg leading-tight">Firebase Data Editor (V27)</h1>
                 <p id="authStatus" class="text-[10px] text-indigo-200">กำลังเชื่อมต่อ...</p>
             </div>
         </div>
-        <button onclick="window.location.href='index.html'" class="bg-indigo-800 px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-house"></i> หน้าหลัก</button>
+        <div class="flex gap-2">
+            <!-- ปุ่มโหลด Backup ใหม่ -->
+            <button onclick="downloadBackup()" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 rounded-lg text-xs font-bold transition shadow-sm border border-emerald-500"><i class="fa-solid fa-file-arrow-down mr-1"></i> ดาวน์โหลด Backup (Excel)</button>
+            <button onclick="window.location.href='admin.html'" class="bg-indigo-800 hover:bg-indigo-900 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm border border-indigo-600"><i class="fa-solid fa-house"></i> หน้าหลัก</button>
+        </div>
     </header>
 
     <div class="bg-white border-b border-slate-200 p-2 flex gap-2 flex-none items-center shadow-sm overflow-x-auto">
@@ -589,7 +656,7 @@
         </div>
 
         <div class="flex-grow"></div>
-        <button id="saveBtn" style="display:none;" onclick="saveToFirebase()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md"><i class="fa-solid fa-cloud-arrow-up"></i> บันทึกขึ้น Firebase</button>
+        <button id="saveBtn" style="display:none;" onclick="saveToFirebase()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md"><i class="fa-solid fa-cloud-arrow-up"></i> บันทึกการแก้ไข (Update)</button>
     </div>
     
     <!-- กล่องค้นหาสำหรับมือถือ -->
