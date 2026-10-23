@@ -3,126 +3,313 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สรุปผลคะแนน DOPA NASAN Score</title>
+    <title>DOPA NASAN SCORE - Dashboard</title>
     
     <link rel="icon" href="DOPA_NASAN_Score_App_Icons/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="DOPA_NASAN_Score_App_Icons/favicon-32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="DOPA_NASAN_Score_App_Icons/favicon-48.png">
     <link rel="apple-touch-icon" sizes="180x180" href="DOPA_NASAN_Score_App_Icons/apple-touch-icon.png">
     <link rel="manifest" href="DOPA_NASAN_Score_App_Icons/manifest.webmanifest">
-    <meta name="theme-color" content="#082558">
+    <meta name="theme-color" content="#1e293b">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    
+    <!-- Chart.js & DataLabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 
     <style>
-        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
-        .glass-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .rank-1 { background-color: #FEF9C3; color: #854D0E; border: 1px solid #FDE047; }
-        .rank-2 { background-color: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
-        .rank-3 { background-color: #FFEDD5; color: #9A3412; border: 1px solid #FDBA74; }
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background-color: #f1f5f9; 
+        }
+        
+        /* Modern Glass Header */
+        .glass-header { 
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-header::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -10%;
+            width: 50%; height: 200%;
+            background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+            transform: rotate(30deg);
+        }
+
+        /* Rank Badges */
+        .rank-1 { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #fff; box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.39); }
+        .rank-2 { background: linear-gradient(135deg, #E2E8F0 0%, #94A3B8 100%); color: #fff; box-shadow: 0 4px 14px 0 rgba(148, 163, 184, 0.39); }
+        .rank-3 { background: linear-gradient(135deg, #FFEDD5 0%, #F97316 100%); color: #fff; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.39); }
+        .rank-other { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+
+        select.center-select {
+            text-align: center;
+            text-align-last: center;
+            -moz-text-align-last: center;
+        }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        .clickable-card {
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            background-color: #ffffff; /* บังคับสีขาวทึบ */
+        }
+        .clickable-card:hover:not(.box-active) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* สไตล์กล่องเมื่อถูกกด (Active) - สีขาวทึบ 100% ไม่มีโปร่งใส */
+        .box-active {
+            transform: scale(1.03) !important;
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15) !important;
+            z-index: 10;
+            background-color: #ffffff !important;
+        }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col text-slate-800">
 
-    <header class="glass-header text-white shadow-lg pb-24">
-        <div class="container mx-auto px-4 pt-6 pb-6">
-            <div class="flex justify-between items-start">
-                <div class="flex items-center space-x-3">
-                    <div class="bg-white/20 p-3 rounded-full backdrop-blur-sm shadow-sm"><i class="fa-solid fa-trophy text-2xl"></i></div>
-                    <div>
-                        <h1 class="text-xl md:text-2xl font-bold">สรุปผลคะแนนกำนัน ผู้ใหญ่บ้าน ฯลฯ</h1>
-                        <p class="text-white/90 text-xs md:text-sm mt-1">อำเภอบ้านนาสาร จังหวัดสุราษฎร์ธานี</p>
+    <header class="glass-header text-white shadow-xl pb-10 md:pb-12">
+        <div class="container mx-auto px-4 pt-5 md:pt-6 relative z-10">
+            <div class="flex justify-between items-start gap-3">
+                <div class="flex items-start gap-3 flex-1 min-w-0">
+                    <div class="bg-white/10 p-2.5 md:p-4 rounded-xl md:rounded-2xl backdrop-blur-md border border-white/20 shadow-lg flex-shrink-0 mt-0.5 hidden sm:flex items-center justify-center">
+                        <i class="fa-solid fa-chart-pie text-2xl md:text-3xl text-indigo-300"></i>
+                    </div>
+                    <div class="bg-white/10 p-2 rounded-lg backdrop-blur-md border border-white/20 shadow-lg flex-shrink-0 mt-0.5 sm:hidden flex items-center justify-center">
+                        <i class="fa-solid fa-chart-pie text-xl text-indigo-300"></i>
+                    </div>
+                    <div class="flex-1 w-full flex flex-col justify-center">
+                        <h1 class="text-xl sm:text-2xl md:text-4xl font-extrabold tracking-tight leading-tight drop-shadow-md">
+                            แดชบอร์ดกระดานคะแนน <br class="sm:hidden" /><span class="text-indigo-300">DOPA NASAN SCORE</span>
+                        </h1>
+                        <p class="text-slate-300 text-[11px] sm:text-xs md:text-sm mt-1.5 font-medium leading-relaxed block w-full">
+                            <i class="fa-solid fa-location-dot mr-1 text-indigo-400"></i>ระบบคะแนน กำนัน ผู้ใหญ่บ้าน ฯลฯ อ.บ้านนาสาร
+                        </p>
                     </div>
                 </div>
-                <button onclick="goToLogin()" class="bg-white/10 hover:bg-white/25 border border-white/30 px-3 md:px-4 py-2 rounded-full text-[10px] md:text-xs font-bold transition flex items-center shadow-md backdrop-blur-sm whitespace-nowrap active:scale-95">
-                    <i class="fa-solid fa-user-shield mr-1.5 md:mr-2"></i> เข้าสู่ระบบ
+                <button onclick="goToLogin()" class="bg-indigo-600/80 hover:bg-indigo-500 text-white p-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-full text-[11px] sm:text-sm font-bold transition-all shadow-lg hover:shadow-indigo-500/30 flex items-center justify-center whitespace-nowrap active:scale-95 border border-indigo-400/50 backdrop-blur-sm flex-shrink-0 mt-1">
+                    <i class="fa-solid fa-user-shield sm:mr-2 text-sm sm:text-base"></i> <span class="hidden sm:inline">ผู้ดูแลระบบ</span>
                 </button>
             </div>
-            <div class="mt-6 flex items-center text-sm text-white/90 bg-black/10 w-fit px-4 py-1.5 rounded-full">
-                <i class="fa-regular fa-clock mr-2"></i> อัปเดตล่าสุด: <span id="lastUpdate" class="font-bold ml-1 mr-3">กำลังโหลดข้อมูลอัตโนมัติ...</span>
-                <button onclick="fetchData()" class="hover:text-yellow-300 transition active:scale-95" title="รีเฟรชข้อมูล"><i class="fa-solid fa-rotate-right"></i></button>
+            
+            <div class="mt-4 md:mt-5 flex items-center text-[10px] md:text-sm text-slate-300 bg-black/20 w-fit px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-full border border-white/5 backdrop-blur-sm">
+                <i class="fa-solid fa-rotate mr-1.5 md:mr-2 text-indigo-400"></i> อัปเดตล่าสุด: <span id="lastUpdate" class="font-bold ml-1 mr-3 text-white">กำลังโหลด...</span>
+                <button onclick="fetchData()" class="text-slate-300 hover:text-white transition-colors active:scale-90 p-1 bg-white/5 rounded-md hover:bg-white/20" title="รีเฟรชข้อมูล">
+                    <i class="fa-solid fa-arrow-rotate-right"></i>
+                </button>
             </div>
         </div>
     </header>
 
-    <main class="container mx-auto px-4 -mt-16 flex-grow pb-10">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-purple-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
-                <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">ทั้งหมด</p><h3 class="text-3xl md:text-4xl font-bold text-slate-800 mt-1" id="statTotal">0</h3></div>
-                <div class="bg-purple-50 w-12 h-12 rounded-full text-purple-600 hidden sm:flex items-center justify-center text-xl border border-purple-100"><i class="fa-solid fa-users"></i></div>
+    <main class="container mx-auto px-3 sm:px-4 -mt-4 md:-mt-6 flex-grow pb-12 relative z-20">
+        
+        <!-- Summary Stats Grid (4 กล่องบน) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-4">
+            <div id="box_all" onclick="filterByGroup('all')" class="rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center clickable-card group border-l-4 border-l-indigo-500">
+                <div>
+                    <p class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">บุคลากรทั้งหมด</p>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-slate-800" id="statTotal">-</h3>
+                </div>
+                <div class="bg-indigo-50 w-10 h-10 md:w-12 md:h-12 rounded-xl text-indigo-600 flex items-center justify-center text-lg md:text-xl group-hover:scale-110 transition-transform"><i class="fa-solid fa-users"></i></div>
             </div>
-            <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-blue-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
-                <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">คะแนนสูงสุด</p><h3 class="text-3xl md:text-4xl font-bold text-blue-600 mt-1" id="statMax">0</h3></div>
-                <div class="bg-blue-50 w-12 h-12 rounded-full text-blue-600 hidden sm:flex items-center justify-center text-xl border border-blue-100"><i class="fa-solid fa-arrow-trend-up"></i></div>
+            
+            <div id="box_max" onclick="filterByGroup('max')" class="rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center clickable-card group border-l-4 border-l-emerald-500">
+                <div>
+                    <p class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">คะแนนสูงสุด</p>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-emerald-600" id="statMax">-</h3>
+                </div>
+                <div class="bg-emerald-50 w-10 h-10 md:w-12 md:h-12 rounded-xl text-emerald-600 flex items-center justify-center text-lg md:text-xl group-hover:scale-110 transition-transform"><i class="fa-solid fa-arrow-trend-up"></i></div>
             </div>
-            <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-red-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
-                <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">คะแนนต่ำสุด</p><h3 class="text-3xl md:text-4xl font-bold text-red-600 mt-1" id="statMin">0</h3></div>
-                <div class="bg-red-50 w-12 h-12 rounded-full text-red-600 hidden sm:flex items-center justify-center text-xl border border-red-100"><i class="fa-solid fa-arrow-trend-down"></i></div>
+            
+            <div id="box_min" onclick="filterByGroup('min')" class="rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center clickable-card group border-l-4 border-l-rose-500">
+                <div>
+                    <p class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">คะแนนต่ำสุด</p>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-rose-600" id="statMin">-</h3>
+                </div>
+                <div class="bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-xl text-rose-600 flex items-center justify-center text-lg md:text-xl group-hover:scale-110 transition-transform"><i class="fa-solid fa-arrow-trend-down"></i></div>
             </div>
-            <div class="bg-white rounded-3xl p-5 md:p-6 shadow-md border-b-4 border-green-500 flex justify-between items-center hover:-translate-y-1 transition-transform">
-                <div><p class="text-gray-500 text-xs md:text-sm uppercase font-bold">คะแนนเฉลี่ย</p><h3 class="text-3xl md:text-4xl font-bold text-green-600 mt-1" id="statAvg">0.0</h3></div>
-                <div class="bg-green-50 w-12 h-12 rounded-full text-green-600 hidden sm:flex items-center justify-center text-xl border border-green-100"><i class="fa-solid fa-chart-line"></i></div>
+            
+            <div id="box_avg" onclick="filterByGroup('avg')" class="rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center clickable-card group border-l-4 border-l-blue-500">
+                <div>
+                    <p class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">คะแนนเฉลี่ย</p>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-blue-600" id="statAvg">-</h3>
+                </div>
+                <div class="bg-blue-50 w-10 h-10 md:w-12 md:h-12 rounded-xl text-blue-600 flex items-center justify-center text-lg md:text-xl group-hover:scale-110 transition-transform"><i class="fa-solid fa-chart-line"></i></div>
             </div>
         </div>
 
-        <div class="bg-white rounded-3xl shadow-lg overflow-hidden border border-slate-100">
-            <div class="p-5 md:p-6 border-b bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
-                <h2 class="text-lg md:text-xl font-bold text-slate-800"><i class="fa-solid fa-ranking-star text-yellow-500 mr-2 text-2xl"></i> อันดับคะแนนรวม</h2>
-                <div class="flex gap-2 w-full md:w-auto">
-                    <select id="filterSub" onchange="filterList()" class="border p-2.5 rounded-xl text-sm w-full md:w-auto outline-none focus:ring-2 focus:ring-indigo-400 bg-white shadow-sm"><option value="">ทุกตำบล</option></select>
-                    <select id="filterVil" onchange="filterList()" class="border p-2.5 rounded-xl text-sm w-full md:w-auto outline-none focus:ring-2 focus:ring-indigo-400 bg-white shadow-sm"><option value="">ทุกหมู่บ้าน</option></select>
+        <!-- 4 Performance/Promotion Boxes (4 กล่องล่าง) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 sm:mb-8">
+            <div id="box_over" onclick="filterByGroup('over')" class="rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center clickable-card group border-l-4 border-l-purple-500">
+                <div>
+                    <p class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">คะแนนเกิน 100 (คน)</p>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-purple-600" id="statOver">-</h3>
+                    <p class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">> 100 คะแนน</p>
+                </div>
+                <div class="bg-purple-50 w-10 h-10 md:w-12 md:h-12 rounded-xl text-purple-600 flex items-center justify-center text-lg md:text-xl group-hover:scale-110 transition-transform flex-shrink-0"><i class="fa-solid fa-star"></i></div>
+            </div>
+            
+            <div id="box_tier2" onclick="filterByGroup('tier2')" class="rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center clickable-card group border-l-4 border-l-emerald-500">
+                <div>
+                    <p class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">2 ขั้น (คน)</p>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-emerald-600" id="statTier2">-</h3>
+                    <p class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">90 - 100 คะแนน</p>
+                </div>
+                <div class="bg-emerald-50 w-10 h-10 md:w-12 md:h-12 rounded-xl text-emerald-600 flex items-center justify-center text-lg md:text-xl group-hover:scale-110 transition-transform flex-shrink-0"><i class="fa-solid fa-angles-up"></i></div>
+            </div>
+            
+            <div id="box_tier1" onclick="filterByGroup('tier1')" class="rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center clickable-card group border-l-4 border-l-blue-500">
+                <div>
+                    <p class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">1 ขั้น (คน)</p>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-blue-600" id="statTier1">-</h3>
+                    <p class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">60 - 89 คะแนน</p>
+                </div>
+                <div class="bg-blue-50 w-10 h-10 md:w-12 md:h-12 rounded-xl text-blue-600 flex items-center justify-center text-lg md:text-xl group-hover:scale-110 transition-transform flex-shrink-0"><i class="fa-solid fa-angle-up"></i></div>
+            </div>
+            
+            <div id="box_tier0" onclick="filterByGroup('tier0')" class="rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center clickable-card group border-l-4 border-l-rose-500">
+                <div>
+                    <p class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1">งดเลื่อนขั้น (คน)</p>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-rose-600" id="statTier0">-</h3>
+                    <p class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">ต่ำกว่า 60 คะแนน</p>
+                </div>
+                <div class="bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-xl text-rose-600 flex items-center justify-center text-lg md:text-xl group-hover:scale-110 transition-transform flex-shrink-0"><i class="fa-solid fa-ban"></i></div>
+            </div>
+        </div>
+
+        <!-- Chart Section (Polar Area Chart - แผนภูมิพื้นที่ขั้วโลก ทันสมัย) -->
+        <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 mb-6 sm:mb-8 p-4 md:p-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                <div class="flex items-center">
+                    <div class="bg-violet-100 p-2 rounded-lg mr-3">
+                        <i class="fa-solid fa-chart-pie text-violet-600 text-base md:text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base sm:text-lg md:text-xl font-bold text-slate-800">คะแนนเฉลี่ยตำบล</h2>
+                        <p class="text-[10px] sm:text-xs text-slate-400 mt-0.5">แผนภูมิเปรียบเทียบคะแนนรวมเฉลี่ยแต่ละพื้นที่</p>
+                    </div>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left min-w-[500px]">
-                    <thead class="bg-white text-slate-400 text-xs uppercase font-bold border-b border-slate-100 tracking-wider">
+            
+            <!-- Polar Area Chart Container -->
+            <div class="relative w-full h-[350px] sm:h-[450px] flex justify-center items-center">
+                <canvas id="subdistrictChart"></canvas>
+            </div>
+            <p class="text-center text-[10px] sm:text-xs text-slate-400 mt-4"><i class="fa-solid fa-hand-pointer mr-1"></i> กดที่ชิ้นส่วนของกราฟเพื่อกรองข้อมูลรายตำบล (กดที่ว่างเพื่อยกเลิก)</p>
+        </div>
+
+        <!-- Leaderboard Section -->
+        <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 overflow-hidden border border-slate-100">
+            <div class="p-4 md:p-6 border-b border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center w-full md:w-auto">
+                    <div class="bg-amber-100 p-2 md:p-2.5 rounded-lg mr-3">
+                        <i class="fa-solid fa-ranking-star text-amber-600 text-base md:text-lg"></i>
+                    </div>
+                    <h2 class="text-base sm:text-lg md:text-xl font-bold text-slate-800">กระดานอันดับคะแนน</h2>
+                </div>
+                
+                <div class="flex flex-wrap md:flex-nowrap gap-3 w-full md:w-auto items-center">
+                    <button onclick="resetAllFilters()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2.5 rounded-xl transition-colors font-bold text-[11px] sm:text-sm flex items-center justify-center gap-2 border border-slate-200 shadow-sm active:scale-95">
+                        <i class="fa-solid fa-rotate-left"></i> คืนค่าเริ่มต้น
+                    </button>
+                    
+                    <div class="grid grid-cols-2 gap-3 w-full sm:w-auto">
+                        <div class="relative w-full sm:w-36 md:w-40">
+                            <select id="filterSub" onchange="filterList()" class="appearance-none border border-slate-200 text-slate-600 p-2.5 px-3 rounded-xl text-[11px] sm:text-sm w-full outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer center-select">
+                                <option value="">ทุกตำบล</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-[10px] sm:text-xs pointer-events-none opacity-60"></i>
+                        </div>
+                        <div class="relative w-full sm:w-36 md:w-40">
+                            <select id="filterVil" onchange="filterList()" class="appearance-none border border-slate-200 text-slate-600 p-2.5 px-3 rounded-xl text-[11px] sm:text-sm w-full outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer center-select">
+                                <option value="">ทุกหมู่บ้าน</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-[10px] sm:text-xs pointer-events-none opacity-60"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Table -->
+            <div class="w-full overflow-x-auto">
+                <table class="w-full text-left min-w-[340px]">
+                    <thead class="bg-slate-50/80 text-slate-500 text-[9px] sm:text-[11px] uppercase font-bold tracking-wider border-b border-slate-100">
                         <tr>
-                            <th class="p-5 text-center w-20">อันดับ</th>
-                            <th class="p-5">ชื่อ - สกุล / ตำแหน่ง</th>
-                            <th class="p-5">พื้นที่รับผิดชอบ</th>
-                            <th class="p-5 text-center">คะแนนรวม</th>
-                            <th class="p-5 text-center w-28">ประวัติ</th>
+                            <th class="py-3 pl-2 pr-0.5 sm:px-4 text-center w-[10%] sm:w-16">อันดับ</th>
+                            <th class="py-3 px-0.5 sm:px-4 w-[37%] sm:w-auto">ชื่อ/ตำแหน่ง</th>
+                            <th class="py-3 px-0.5 sm:px-4 w-[28%] sm:w-auto">พื้นที่</th>
+                            <th class="py-3 pr-2 pl-0.5 sm:px-4 text-center w-[12%] sm:w-24">คะแนน</th>
+                            <th class="py-3 pl-3 pr-2 sm:px-4 text-center w-[13%] sm:w-24">ประวัติ</th>
                         </tr>
                     </thead>
-                    <tbody id="boardBody" class="text-slate-700 divide-y divide-slate-50 text-sm">
-                        <tr><td colspan="5" class="text-center p-10 text-indigo-500"><i class="fa-solid fa-spinner fa-spin text-3xl mb-3"></i><br><span class="font-bold">กำลังดึงข้อมูลล่าสุด...</span></td></tr>
+                    <tbody id="boardBody" class="divide-y divide-slate-100 text-sm">
+                        <tr>
+                            <td colspan="5" class="py-16 text-center">
+                                <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-3xl mb-4"></i>
+                                <p class="text-slate-500 font-medium text-xs sm:text-sm">กำลังโหลดข้อมูลกระดานคะแนน...</p>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </main>
 
-    <div id="histModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-start md:items-center justify-center p-0 md:p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-white w-full h-full md:h-[85vh] md:max-w-4xl md:rounded-3xl flex flex-col shadow-2xl">
-            <div class="p-5 border-b bg-slate-800 text-white md:rounded-t-3xl flex justify-between items-center flex-none">
-                <div>
-                    <h3 class="font-bold text-xl" id="histTitle">ประวัติคะแนน</h3>
-                    <p class="text-sm text-slate-300 mt-1" id="histSub">กำลังโหลด...</p>
+    <!-- History Modal -->
+    <div id="histModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-end md:items-center justify-center md:p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white w-full md:w-11/12 max-w-4xl h-[90vh] md:h-[80vh] md:rounded-3xl flex flex-col shadow-2xl rounded-t-3xl overflow-hidden animate-fade-in">
+            <div class="px-5 py-4 border-b border-slate-100 bg-white flex justify-between items-center flex-none">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-50 w-10 h-10 rounded-full flex items-center justify-center text-indigo-600 text-lg flex-shrink-0">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base sm:text-lg text-slate-800" id="histTitle">ประวัติคะแนน</h3>
+                        <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5" id="histSub">กำลังโหลด...</p>
+                    </div>
                 </div>
-                <button onclick="document.getElementById('histModal').classList.add('hidden')" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-700 transition active:scale-95"><i class="fa-solid fa-times text-xl"></i></button>
+                <button onclick="document.getElementById('histModal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors active:scale-90">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
             </div>
-            <div class="flex-grow overflow-auto p-4 md:p-6 custom-scroll relative bg-slate-50">
-                <table class="w-full text-left bg-white rounded-2xl shadow-sm overflow-hidden min-w-[500px]">
-                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold border-b border-slate-100">
-                        <tr>
-                            <th class="p-4 w-28 text-center">วันที่</th>
-                            <th class="p-4">รายละเอียดกิจกรรม</th>
-                            <th class="p-4 text-center w-24">คะแนน</th>
-                            <!-- คอลัมน์หลักฐาน ถูกซ่อนไว้เมื่อดูบนมือถือ (hidden md:table-cell) -->
-                            <th class="p-4 text-center w-28 hidden md:table-cell">หลักฐาน</th>
-                        </tr>
-                    </thead>
-                    <tbody id="histBody" class="divide-y divide-slate-50 text-sm"></tbody>
-                </table>
+            
+            <div class="flex-grow overflow-auto p-4 custom-scroll bg-slate-50">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <table class="w-full text-left min-w-[300px]">
+                        <thead class="bg-slate-50 border-b border-slate-100 text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                            <tr>
+                                <th class="py-2.5 px-3 w-16 sm:w-24 text-center">วันที่</th>
+                                <th class="py-2.5 px-3">รายละเอียดกิจกรรม</th>
+                                <th class="py-2.5 px-3 text-center w-16 sm:w-20">คะแนน</th>
+                                <th class="py-2.5 px-3 text-center w-24 hidden md:table-cell">หลักฐาน</th>
+                            </tr>
+                        </thead>
+                        <tbody id="histBody" class="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
+                            <!-- Injected History -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -144,6 +331,10 @@
         const basePath = `artifacts/dopa-nasan-score/public/data`;
 
         let allData = [];
+        let subdistrictChartInstance = null;
+        let currentTierFilter = 'all'; 
+        
+        Chart.register(ChartDataLabels);
 
         window.onload = function() {
             auth.onAuthStateChanged((user) => {
@@ -152,15 +343,21 @@
                 } else {
                     auth.signInAnonymously().catch((error) => {
                         console.error("Authentication Error:", error);
-                        document.getElementById('lastUpdate').innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+                        document.getElementById('lastUpdate').innerText = "เชื่อมต่อล้มเหลว";
                     });
                 }
             });
         };
 
         function goToLogin() {
-            document.getElementById('lastUpdate').innerText = "กำลังเปลี่ยนหน้า...";
             window.location.href = "admin.html"; 
+        }
+
+        // ปุ่มคืนค่าเริ่มต้น
+        function resetAllFilters() {
+            document.getElementById('filterSub').value = "";
+            document.getElementById('filterVil').value = "";
+            filterByGroup('all'); 
         }
 
         function fetchData() {
@@ -185,18 +382,216 @@
                     
                     const sel = document.getElementById('filterSub');
                     const curVal = sel.value;
-                    
                     const subs = [...new Set(allData.map(i=>i.subdistrict).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
                     sel.innerHTML = '<option value="">ทุกตำบล</option>' + subs.map(x=>`<option value="${x}">${x}</option>`).join('');
                     sel.value = curVal;
                     
                     document.getElementById('lastUpdate').innerText = new Date().toLocaleString('th-TH');
-                    filterList();
+                    
+                    filterByGroup('all'); 
+                    renderSubdistrictAveragesChart(allData);
                 })
                 .catch(err => {
                     console.error("Error fetching data:", err);
                     document.getElementById('lastUpdate').innerText = "โหลดข้อมูลล้มเหลว";
                 });
+        }
+
+        function renderSubdistrictAveragesChart(data) {
+            const canvas = document.getElementById('subdistrictChart');
+            if(!data || data.length === 0) return;
+
+            const subStats = {};
+            
+            data.forEach(d => {
+                if(!d.subdistrict) return;
+                let score = Number(d.totalScore) || 0;
+                if(!subStats[d.subdistrict]) subStats[d.subdistrict] = { total: 0, count: 0 };
+                subStats[d.subdistrict].total += score;
+                subStats[d.subdistrict].count += 1;
+            });
+            
+            // เรียงจากมากไปน้อย
+            const averages = Object.keys(subStats).map(sub => {
+                return {
+                    name: sub,
+                    avg: subStats[sub].total / subStats[sub].count,
+                    count: subStats[sub].count
+                };
+            }).sort((a, b) => b.avg - a.avg);
+
+            if(averages.length === 0) return;
+
+            const labels = averages.map(a => 'ต.' + a.name);
+            const chartDataAvg = averages.map(a => parseFloat(a.avg.toFixed(2)));
+            
+            // ชุดสีที่ถูกปรับแต่งใหม่ (เปลี่ยนสี ต.ลำพูน ให้เป็น Indigo เพื่อไม่ให้ซ้ำกับ ต.น้ำพุ)
+            const distinctColors = [
+                '#3b82f6', // 1. Blue
+                '#10b981', // 2. Emerald
+                '#f97316', // 3. Orange
+                '#8b5cf6', // 4. Violet
+                '#ef4444', // 5. Red (น้ำพุ)
+                '#0ea5e9', // 6. Sky
+                '#eab308', // 7. Yellow
+                '#ec4899', // 8. Pink
+                '#14b8a6', // 9. Teal
+                '#4f46e5', // 10. Indigo (ลำพูน) - เปลี่ยนจากเดิมที่เป็นโทนแดง/ชมพูเข้ม
+                '#84cc16', // 11. Lime
+                '#64748b'  // 12. Slate
+            ];
+            
+            // เพิ่มความโปร่งแสงให้สี (เพิ่ม D9 ต่อท้าย Hex) สำหรับกราฟ Polar
+            const bgColors = averages.map((_, i) => distinctColors[i % distinctColors.length] + 'D9');
+            const borderColors = averages.map((_, i) => distinctColors[i % distinctColors.length]);
+
+            const ctx = canvas.getContext('2d');
+            
+            if (subdistrictChartInstance) subdistrictChartInstance.destroy();
+
+            // ค้นหาค่าต่ำสุดเพื่อตั้งเป็นฐานกราฟ (ให้กราฟเห็นความต่างได้ชัดเจนขึ้น)
+            let minScore = Math.min(...chartDataAvg);
+            let scaleMin = Math.floor(minScore) - 2; 
+            if(scaleMin < 0) scaleMin = 0;
+
+            // ใช้ Polar Area Chart
+            subdistrictChartInstance = new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'คะแนนเฉลี่ย',
+                            data: chartDataAvg,
+                            backgroundColor: bgColors,
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            hoverBorderColor: borderColors,
+                            hoverBorderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: 10
+                    },
+                    scales: {
+                        r: {
+                            min: scaleMin,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.04)'
+                            },
+                            angleLines: {
+                                color: 'rgba(0, 0, 0, 0.04)'
+                            },
+                            ticks: {
+                                display: false // ซ่อนตัวเลขบอกสเกลด้านใน
+                            }
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements, chart) => {
+                        const filterSubSelect = document.getElementById('filterSub');
+                        
+                        if (elements && elements.length > 0) {
+                            const dataIndex = elements[0].index;
+                            const clickedLabel = chart.data.labels[dataIndex]; 
+                            const subdistrictName = clickedLabel.replace('ต.', ''); 
+
+                            if (filterSubSelect.value === subdistrictName) {
+                                filterSubSelect.value = ""; 
+                            } else {
+                                filterSubSelect.value = subdistrictName;
+                            }
+                        } else {
+                            filterSubSelect.value = "";
+                        }
+                        filterList();
+                    },
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            position: window.innerWidth < 600 ? 'bottom' : 'right',
+                            labels: {
+                                font: { family: 'Sarabun', size: 12 },
+                                usePointStyle: true,
+                                padding: 15,
+                                color: '#475569'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Sarabun', size: 13 },
+                            bodyFont: { family: 'Sarabun', size: 12 },
+                            padding: 10,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.r !== null) label += context.parsed.r;
+                                    label += ` (${averages[context.dataIndex].count} คน)`;
+                                    return label;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#334155',
+                            font: { family: 'Sarabun', weight: 'bold', size: 12 },
+                            formatter: function(value) {
+                                return value;
+                            },
+                            anchor: 'end',
+                            align: 'end',
+                            offset: 2
+                        }
+                    }
+                }
+            });
+        }
+
+        function filterByGroup(tier) {
+            // สลับสถานะ: ถ้ากดกล่องเดิมซ้ำ ให้กลับไปที่ 'all'
+            if (currentTierFilter === tier && tier !== 'all') {
+                currentTierFilter = 'all';
+            } else {
+                currentTierFilter = tier;
+            }
+            
+            const boxConfig = [
+                { id: 'box_all', ring: 'ring-indigo-500' },
+                { id: 'box_max', ring: 'ring-emerald-500' },
+                { id: 'box_min', ring: 'ring-rose-500' },
+                { id: 'box_avg', ring: 'ring-blue-500' },
+                { id: 'box_over', ring: 'ring-purple-500' },
+                { id: 'box_tier2', ring: 'ring-emerald-500' },
+                { id: 'box_tier1', ring: 'ring-blue-500' },
+                { id: 'box_tier0', ring: 'ring-rose-500' }
+            ];
+            
+            // ล้างสถานะกล่องทั้งหมดกลับเป็นปกติ
+            boxConfig.forEach(b => {
+                let el = document.getElementById(b.id);
+                if(el) {
+                    el.classList.remove('box-active', 'ring-2', 'ring-offset-2');
+                    el.className = el.className.replace(/ring-\w+-500/g, '').trim();
+                }
+            });
+            
+            // ไฮไลต์กล่องที่ถูกเลือก
+            const activeBoxDef = boxConfig.find(b => b.id === ('box_' + currentTierFilter));
+            if (activeBoxDef) {
+                let activeBox = document.getElementById(activeBoxDef.id);
+                if(activeBox) {
+                    activeBox.classList.add('box-active', 'ring-2', 'ring-offset-2', activeBoxDef.ring);
+                }
+            }
+
+            filterList();
         }
 
         function filterList() {
@@ -219,36 +614,105 @@
             }
 
             const v = vSel.value;
-            const res = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.village===v));
-            renderStats(res); renderTable(res);
+            // 1. กรองตามพื้นที่ (Dropdown ตำบล/หมู่บ้าน)
+            let resArea = allData.filter(d => (!s || d.subdistrict===s) && (!v || d.village===v));
+            
+            // 4 กล่องล่าง ให้อัปเดตตัวเลขตามพื้นที่ "ทั้งหมด" ของพื้นที่นั้น
+            updateTierStats(resArea);
+
+            // 2. กรองข้อมูลตามกล่อง (8 กล่อง) ที่กดเลือกอยู่
+            let tableRes = [...resArea];
+            
+            if (currentTierFilter === 'max' && tableRes.length > 0) {
+                const maxVal = Math.max(...tableRes.map(d => d.totalScore));
+                tableRes = tableRes.filter(d => d.totalScore === maxVal);
+            } else if (currentTierFilter === 'min' && tableRes.length > 0) {
+                const minVal = Math.min(...tableRes.map(d => d.totalScore));
+                tableRes = tableRes.filter(d => d.totalScore === minVal);
+            } else if (currentTierFilter === 'avg' && tableRes.length > 0) {
+                const avgVal = tableRes.reduce((a,b)=>a+b.totalScore,0)/tableRes.length;
+                tableRes = tableRes.filter(d => d.totalScore >= avgVal);
+            } else if (currentTierFilter === 'over') {
+                tableRes = tableRes.filter(d => d.totalScore > 100);
+            } else if (currentTierFilter === 'tier2') {
+                tableRes = tableRes.filter(d => d.totalScore >= 90 && d.totalScore <= 100);
+            } else if (currentTierFilter === 'tier1') {
+                tableRes = tableRes.filter(d => d.totalScore >= 60 && d.totalScore <= 89);
+            } else if (currentTierFilter === 'tier0') {
+                tableRes = tableRes.filter(d => d.totalScore < 60);
+            }
+
+            // ส่งข้อมูลที่ถูกกรองตามกล่อง ไปคำนวณใน 4 กล่องบน
+            renderStats(tableRes); 
+            // วาดตาราง
+            renderTable(tableRes);
+        }
+
+        function updateTierStats(data) {
+            let over = data.filter(d => d.totalScore > 100).length;
+            let t2 = data.filter(d => d.totalScore >= 90 && d.totalScore <= 100).length;
+            let t1 = data.filter(d => d.totalScore >= 60 && d.totalScore <= 89).length;
+            let t0 = data.filter(d => d.totalScore < 60).length;
+
+            document.getElementById('statOver').innerText = over.toLocaleString();
+            document.getElementById('statTier2').innerText = t2.toLocaleString();
+            document.getElementById('statTier1').innerText = t1.toLocaleString();
+            document.getElementById('statTier0').innerText = t0.toLocaleString();
         }
 
         function renderStats(d) {
-            document.getElementById('statTotal').innerText = d.length;
-            document.getElementById('statMax').innerText = d.length ? Math.max(...d.map(o=>o.totalScore)) : 0;
-            document.getElementById('statMin').innerText = d.length ? Math.min(...d.map(o=>o.totalScore)) : 0;
+            document.getElementById('statTotal').innerText = d.length.toLocaleString();
+            document.getElementById('statMax').innerText = d.length ? Math.max(...d.map(o=>o.totalScore)).toLocaleString() : 0;
+            document.getElementById('statMin').innerText = d.length ? Math.min(...d.map(o=>o.totalScore)).toLocaleString() : 0;
             document.getElementById('statAvg').innerText = d.length ? (d.reduce((a,b)=>a+b.totalScore,0)/d.length).toFixed(1) : "0.0";
         }
 
         function renderTable(data) {
-            const tb = document.getElementById('boardBody'); tb.innerHTML = '';
-            if(!data.length) { tb.innerHTML='<tr><td colspan="5" class="text-center p-10 text-slate-400">ไม่พบข้อมูลในพื้นที่ที่เลือก</td></tr>'; return; }
+            const tb = document.getElementById('boardBody'); 
+            tb.innerHTML = '';
+            
+            if(!data.length) { 
+                tb.innerHTML=`<tr><td colspan="5" class="py-16 text-center text-slate-400 bg-slate-50/50"><i class="fa-regular fa-folder-open text-3xl mb-2"></i><br>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`; 
+                return; 
+            }
 
             data.forEach((i, idx) => {
-                let rCls = 'bg-slate-100 text-slate-500', rIcon = `#${idx+1}`;
-                if(idx===0) { rCls='rank-1 shadow-md'; rIcon='<i class="fa-solid fa-trophy text-yellow-700"></i>'; }
-                else if(idx===1) { rCls='rank-2 shadow-md'; rIcon='<i class="fa-solid fa-medal text-slate-600"></i>'; }
-                else if(idx===2) { rCls='rank-3 shadow-md'; rIcon='<i class="fa-solid fa-medal text-orange-700"></i>'; }
+                let rCls = 'rank-other', rIcon = idx + 1;
+                if(idx === 0) { rCls = 'rank-1'; rIcon = '<i class="fa-solid fa-trophy"></i>'; }
+                else if(idx === 1) { rCls = 'rank-2'; rIcon = '<i class="fa-solid fa-medal"></i>'; }
+                else if(idx === 2) { rCls = 'rank-3'; rIcon = '<i class="fa-solid fa-award"></i>'; }
 
-                let sCls = i.totalScore < 60 ? 'text-red-600' : (i.totalScore <= 89 ? 'text-green-600' : 'text-blue-600');
+                let sCls = i.totalScore < 60 ? 'text-rose-600 bg-rose-50 border-rose-100' : (i.totalScore <= 89 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-blue-600 bg-blue-50 border-blue-100');
 
-                tb.innerHTML += `<tr class="hover:bg-indigo-50/30 transition duration-200">
-                    <td class="p-4 text-center"><div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center ${rCls} font-bold text-sm">${rIcon}</div></td>
-                    <td class="p-4"><div class="font-bold text-slate-800 text-base">${i.fullName}</div><div class="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded w-fit mt-1 border border-slate-200">${i.position}</div></td>
-                    <td class="p-4 text-sm text-slate-600">${i.village} <span class="text-[10px] text-slate-400 block mt-0.5 font-bold">ต.${i.subdistrict}</span></td>
-                    <td class="p-4 text-center font-bold text-2xl ${sCls}">${i.totalScore}</td>
-                    <td class="p-4 text-center">
-                        <button onclick="viewHist('${i.idCardHash}', '${i.fullName}', '${i.position} ${i.village}')" class="text-indigo-600 bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm whitespace-nowrap active:scale-95"><i class="fa-solid fa-clock-rotate-left mr-1"></i> ประวัติ</button>
+                let formattedName = i.fullName;
+                if(formattedName.indexOf(' ') > -1) {
+                    let parts = formattedName.split(' ');
+                    formattedName = `<span class="inline-block">${parts[0]}</span> <span class="inline-block">${parts.slice(1).join(' ')}</span>`;
+                }
+
+                tb.innerHTML += `<tr class="hover:bg-slate-50 transition duration-200 group border-b border-slate-50">
+                    <td class="py-3 pl-2 pr-0.5 sm:px-4 text-center align-middle">
+                        <div class="w-6 h-6 sm:w-9 sm:h-9 mx-auto rounded-full flex items-center justify-center ${rCls} font-bold text-[9px] sm:text-sm shadow-sm transition-transform group-hover:scale-110">
+                            ${rIcon}
+                        </div>
+                    </td>
+                    <td class="py-3 px-0.5 sm:px-4 align-middle">
+                        <div class="font-bold text-slate-800 text-[14px] sm:text-base leading-tight pr-1">${formattedName}</div>
+                        <div class="text-[9px] sm:text-[11px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full w-fit mt-1 border border-slate-200/60 whitespace-nowrap">${i.position}</div>
+                    </td>
+                    <td class="py-3 px-0.5 sm:px-4 align-middle">
+                        <div class="text-[10px] sm:text-sm font-medium text-slate-700 whitespace-nowrap tracking-tight">${i.village}</div>
+                        <div class="text-[9px] sm:text-[11px] text-slate-400 mt-0.5 whitespace-nowrap"><i class="fa-solid fa-map-pin mr-0.5"></i>ต.${i.subdistrict}</div>
+                    </td>
+                    <td class="py-3 px-1.5 sm:px-4 text-center align-middle">
+                        <span class="inline-block px-1.5 sm:px-3 py-1 rounded font-bold text-[16px] sm:text-xl ${sCls} border min-w-[34px] sm:w-20 text-center shadow-sm">
+                            ${i.totalScore}
+                        </span>
+                    </td>
+                    <td class="py-3 pl-1.5 pr-2 sm:px-4 text-center align-middle">
+                        <button onclick="viewHist('${i.idCardHash}', '${i.fullName}', '${i.position} ${i.village} ต.${i.subdistrict}')" class="text-indigo-600 bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 hover:text-white w-7 h-7 sm:w-auto sm:h-auto sm:px-3.5 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center justify-center mx-auto whitespace-nowrap">
+                            <i class="fa-solid fa-clock-rotate-left text-[11px] sm:text-sm"></i> <span class="hidden sm:inline ml-1.5">ประวัติ</span>
+                        </button>
                     </td>
                 </tr>`;
             });
@@ -286,14 +750,16 @@
             document.getElementById('histModal').classList.remove('hidden');
             const tb = document.getElementById('histBody');
             
-            tb.innerHTML = '<tr><td colspan="4" class="text-center p-10 text-indigo-500"><i class="fa-solid fa-spinner fa-spin text-3xl"></i></td></tr>';
+            tb.innerHTML = '<tr><td colspan="4" class="py-12 text-center text-indigo-500"><i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3"></i><br>กำลังโหลด...</td></tr>';
             
             const targetId = atob(idHash); 
             
             db.collection(`${basePath}/score_logs`).where('idCard', '==', targetId).get()
                 .then(snap => {
-                    tb.innerHTML = '';
-                    if(snap.empty) { tb.innerHTML='<tr><td colspan="4" class="text-center p-8 text-slate-400 bg-slate-50">ยังไม่มีประวัติการประเมิน</td></tr>'; return; }
+                    if(snap.empty) { 
+                        tb.innerHTML='<tr><td colspan="4" class="py-12 text-center text-slate-400 bg-slate-50/50"><i class="fa-solid fa-clock text-3xl mb-2"></i><br>ยังไม่มีประวัติ</td></tr>'; 
+                        return; 
+                    }
                     
                     let logsArr = [];
                     snap.docs.forEach(doc => logsArr.push(doc.data()));
@@ -325,37 +791,43 @@
                     let finalHistory = order.map(k => grouped[k]);
                     finalHistory.sort((a, b) => b.sortTime - a.sortTime);
                     
+                    tb.innerHTML = '';
                     finalHistory.forEach(l => {
                         let dateDisplay = formatThaiDate(l.dateStr);
                         let isNegative = l.rawScore < 0;
                         let scoreDisplay = (isNegative ? '' : '+') + l.rawScore;
-                        let scoreHtml = `<span class="${!isNegative ? 'text-green-600' : 'text-red-600'}">${scoreDisplay}</span>`;
+                        let scoreColor = isNegative ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100';
                         
                         let proofLink = l.proof ? l.proof : '';
                         
-                        // ปรับปุ่มหลักฐานให้เหมาะสม
-                        // ปุ่มสำหรับจอคอม (จะถูกซ่อนบนมือถือ)
-                        let proofBtnDesktop = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition whitespace-nowrap inline-flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-paperclip"></i> ดูไฟล์</a>` : '<span class="text-slate-300">-</span>';
+                        let proofBtnDesktop = proofLink 
+                            ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-md text-[11px] font-bold transition-colors inline-flex items-center justify-center gap-1.5 w-full"><i class="fa-solid fa-paperclip"></i> ดูไฟล์</a>` 
+                            : '<span class="text-slate-300 bg-slate-50 px-3 py-1 rounded-md text-[11px] border border-slate-100 inline-block w-full text-center">ไม่มีไฟล์</span>';
                         
-                        // ปุ่มสำหรับมือถือ (จะอยู่ใต้ชื่อกิจกรรม และถูกซ่อนบนจอคอม)
-                        let proofBtnMobile = proofLink ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition whitespace-nowrap inline-flex items-center justify-center gap-1 mt-2 w-auto"><i class="fa-solid fa-paperclip"></i> ดูไฟล์หลักฐาน</a>` : '';
+                        let proofBtnMobile = proofLink 
+                            ? `<a href="${proofLink}" target="_blank" class="text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded-md text-[10px] font-bold shadow-sm hover:bg-blue-600 hover:text-white transition-colors inline-flex items-center gap-1 mt-1.5"><i class="fa-solid fa-paperclip"></i> หลักฐาน</a>` 
+                            : '';
 
-                        tb.innerHTML += `<tr class="hover:bg-slate-50 transition border-b border-slate-50">
-                            <td class="p-3 md:p-4 text-[10px] md:text-sm text-slate-500 font-mono align-top text-center pt-4 md:pt-5">${dateDisplay}</td>
-                            <td class="p-3 md:p-4 text-sm align-top">
-                                <div class="text-slate-800 font-medium leading-relaxed">${l.activityName}</div>
-                                <!-- ปุ่มนี้โชว์เฉพาะมือถือ -->
+                        tb.innerHTML += `<tr class="hover:bg-slate-50 transition-colors">
+                            <td class="py-3 px-2 text-[10px] sm:text-xs font-mono text-slate-500 text-center align-top whitespace-nowrap">${dateDisplay}</td>
+                            <td class="py-3 px-2 align-top">
+                                <div class="text-slate-800 text-[11px] sm:text-sm font-medium leading-relaxed">${l.activityName}</div>
                                 <div class="md:hidden">${proofBtnMobile}</div>
                             </td>
-                            <td class="p-3 md:p-4 text-center font-bold text-lg md:text-xl align-top pt-4 md:pt-5">${scoreHtml}</td>
-                            <!-- คอลัมน์นี้โชว์เฉพาะคอมพิวเตอร์ -->
-                            <td class="p-4 text-center align-top pt-5 hidden md:table-cell">${proofBtnDesktop}</td>
+                            <td class="py-3 px-2 text-center align-top">
+                                <span class="inline-block px-1.5 py-0.5 rounded border font-bold text-[11px] sm:text-sm ${scoreColor}">
+                                    ${scoreDisplay}
+                                </span>
+                            </td>
+                            <td class="py-3 px-2 text-center align-top hidden md:table-cell w-28">
+                                ${proofBtnDesktop}
+                            </td>
                         </tr>`;
                     });
                 })
                 .catch(err => {
                     console.error("Error fetching history:", err);
-                    tb.innerHTML = '<tr><td colspan="4" class="text-center p-8 text-red-500">โหลดข้อมูลล้มเหลว</td></tr>';
+                    tb.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-rose-500">โหลดข้อมูลล้มเหลว</td></tr>';
                 });
         }
     </script>
